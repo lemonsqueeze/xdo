@@ -1,0 +1,54 @@
+#!/usr/bin/perl
+# rename obfuscated methods based on defining class
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+$| = 1;
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+
+################################################################################
+
+use class_info;
+get_class_info(@FILES);
+
+################################################################################
+
+
+# Methods we want to rename
+my $re_meth_match = qr|[0-9a-zA-Z_]{1,3}|;	# 3 letters max
+#my $re_meth_match = qr|[0-9a-zA-Z_]+|;		# any
+
+
+sub class_prefix
+{
+    my ($class) = @_;
+    my @parts = split("/", $class);    
+    $class = pop(@parts);   # just keep last part
+    $class =~ s|\$|_|g;    
+    return $class;
+}
+
+sub class_prefix_method_renamer
+{
+    my ($class, $method, $type, $def_class) = @_;
+
+    if ($method =~ m/^$re_meth_match$/)
+    {   return  (class_prefix($def_class) . "_" . $method);   }
+    return $method;
+}
+
+use rename_methods;
+get_methods_mapping(\&class_prefix_method_renamer);
+
+
+################################################################################
+
+
+rename_methods(@FILES);

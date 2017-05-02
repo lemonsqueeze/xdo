@@ -1,0 +1,52 @@
+#!/bin/bash
+# assemble classes
+
+die() { echo "$@" 1>&2; exit 1; }
+
+usage()
+{
+    echo "Usage: asm [file.j ...]"
+    echo ""
+    echo "  Without arguments, assemble all classes in currently extracted jar."
+    echo "  (classes which are up-to-date are not assembled again)"
+    echo ""
+    echo "  If class files are specified, just disassemble these."
+    exit 1
+}
+
+
+# Standalone mode
+if [ "$1" != "" ]; then
+    for f in "$@"; do
+	java_asm "$f"
+    done
+    exit 0
+fi
+
+
+[ -d "jar" ] || die "no jar/ directory. Open jar first "
+
+asm()
+{
+    cat > Makefile.xdo <<'EOF'
+SRCJ     = $(shell find . -name "*.j" )
+CLASSES  = $(SRCJ:.j=.class)
+
+all: $(CLASSES)
+
+%.class: %.j
+	@echo ASM '$<'
+	@java_asm '$<'
+EOF
+
+    cpus=`cat /proc/cpuinfo | grep processor | wc -l`
+    make -f Makefile.xdo -j$cpus all
+    rm Makefile.xdo    
+}
+
+set -e
+
+cd jar
+n=`find . -name "*.j" | wc -l`
+[ "$n" = 0 ] && die "No input files. dasm first ?"
+asm 

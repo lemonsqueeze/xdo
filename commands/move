@@ -1,0 +1,101 @@
+#!/usr/bin/perl
+# move or rename classes and fix all references to them in others
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+
+$| = 1;
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+sub usage
+{    
+print q{
+Usage: xdo move <src> <dest>
+
+Move/rename java classes matching <src> and fixes all
+references to renamed classes.
+
+<src> may contain '*' and '**' wildcards:
+  '*'  matches any single class or directory
+  '**' matches any class at any depth further down
+
+Corresponding matches may be referred to as $1, $2 etc in <dest>,
+while $0 is the full class name. Renames may not result in clashes
+or you'll get an error.
+
+Examples:
+  move '*' 'pkg/$1'
+      move all classes in default package to pkg
+
+  move '**' 'pkg/$1'
+      move *all* classes to pkg
+
+  move '**/Net*' 'org/app/net/$2'
+      group all network classes together
+
+};
+    exit 1;
+}
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)/) { usage(); }
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+foreach (@FILES) {  s|^./||;  }
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+
+################################################################################
+# regexp kungfu
+
+# Match $ in class name for inner classes 
+my $classid       = "([0-9a-zA-Z_\$]*)";
+my $pathid        = "([0-9a-zA-Z_\$/]*)";
+my $valid_pattern = "([0-9a-zA-Z_\$/*]*)";
+
+# Make regexp from command-line pattern
+my $re_match = $ARGV[0];
+if ($re_match eq "" || !($re_match =~ m/^$valid_pattern$/)) { die "Invalid pattern: '$ARGV[0]'\n"; }
+$re_match =~ s|\*\*|<starstar>|g;
+$re_match =~ s|\*|$classid|g;
+$re_match =~ s|<starstar>|$pathid|g;
+$re_match = qr|($re_match)|;
+
+my $re_dest = $ARGV[1];
+if ($re_dest eq "" || !($re_dest =~ m/\$/) ||
+    !($re_dest =~ m/^$valid_pattern$/)) { die "Invalid destination: '$ARGV[1]'\n"; }
+# and quote for future eval
+$re_dest = '"' . $re_dest . '"';
+# and bump up ref numbers ('$0' becomes '$1', '$1' becomes '$2' etc)
+$re_dest =~ s|\$([0-9]+)| '$' . ($1 + 1) |eg;
+
+
+#print "pattern: '$re_match'\n";
+#print "dest   : '$re_dest'\n";
+
+# Test variable regular expressions:
+#my $s = "aaa/foo";
+#$s =~ s|$re_match|$re_dest|ee;
+#$s =~ s|(z*)$re_match|$re_dest2|ee;
+#print "s: '$s'\n";
+
+
+##########################################################################
+
+use rename_classes;
+
+sub regexp_renamer
+{
+    my ($class) = @_;
+    $class =~ s|^$re_match$|$re_dest|ee;
+    return $class;
+}
+
+# First pass: get class mappings and sanity checks
+get_class_mapping(\&regexp_renamer, \@FILES);
+
+# Main loop
+rename_classes(@FILES);
+

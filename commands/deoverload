@@ -1,0 +1,63 @@
+#!/usr/bin/perl
+# deoverload (rename) methods
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+$| = 1;
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+
+################################################################################
+
+use class_info;
+get_class_info(@FILES);
+
+################################################################################
+
+
+sub overloaded_method
+{
+    my ($class, $method) = @_;    
+    return method_name_in_use($class, $method);
+}
+
+sub find_new_method_name
+{    
+    my ($class, $name) = @_;
+
+    for (my $i = 1;  ; $i++)	
+    {  
+	my $newname = "$name$i";
+	if (!method_name_in_use($class, $newname))
+	{  return $newname;  }
+    }
+}
+
+sub deoverload_renamer
+{
+    my ($class, $method, $type, $def_class) = @_;
+    
+    # implementing / overriding something ?  don't touch
+    if ($def_class ne $class)  {  return $method;  }
+    
+    if (overloaded_method($class, $method)) 
+    {
+	return find_new_method_name($class, $method);
+    }
+    return $method;
+}
+
+use rename_methods;
+get_methods_mapping(\&deoverload_renamer);
+
+
+################################################################################
+
+
+rename_methods(@FILES);

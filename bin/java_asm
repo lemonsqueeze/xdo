@@ -1,0 +1,27 @@
+#!/bin/bash
+# wrapper for krakatau assembler
+# make sure assemble.py is reachable in your PATH
+shopt -s globstar
+
+die() { echo "$@"; exit 1; }
+[ -f "$1" ] || die "$1: no such file"
+
+cwd=$PWD
+fullfilename="$1"
+file="${1##*/}"		# foo.j
+dir="`dirname "$1"`"
+
+#echo "file: $file"
+
+tmpdir=`mktemp -d /tmp/krakatau.XXXXXXXX`
+
+cp -p "$1" $tmpdir/
+cd $tmpdir
+assemble.py "$file" >/dev/null
+
+# For make
+touch -r "$file" **/*.class
+
+# Krakatau creates the class directories ...
+mv **/*.class  "$cwd/$dir"
+rm -rf $tmpdir; 

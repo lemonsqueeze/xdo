@@ -1,0 +1,77 @@
+#!/usr/bin/perl
+# rename all fields based on field type
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+$| = 1;
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+
+################################################################################
+
+use class_info;
+get_class_info(@FILES);
+
+################################################################################
+
+
+use rename_fields;
+
+sub find_new_field_name
+{    
+    my ($class, $basename, $count) = @_;
+
+    # If only one field of this type try without number
+    if ($count == 1 && !new_field_defined($class, $basename))
+    {  return $basename;  }
+
+    for (my $i = 1;  ; $i++)	
+    {  
+	my $newname = "$basename$i";
+	if (!new_field_defined($class, $newname))
+	{  return $newname;  }
+    }
+}
+
+sub type_to_field_basename
+{
+    my ($type) = @_;
+    if ($type =~ m/^[A-Z]$/) { return lc($type); }
+    if ($type =~ m|^L([0-9a-zA-Z_\$/]+);$|)
+    {
+	my @parts = split("/", $1);
+	my $class = pop(@parts);
+	$class =~ s|\$|_|g;   # Inner classes -> '_'
+	return $class;
+    }
+    if ($type =~ m|^(\[+)([^[]*)$|)
+    {
+	return type_to_field_basename($2);	# Nothing special for arrays for now ...
+    }
+    die "Unknown type: '$type'";
+}
+
+
+sub field_renamer
+{
+    my ($class, $field, $type, $count) = @_;
+    my $basename = type_to_field_basename($type);
+    return find_new_field_name($class, $basename, $count);
+}
+
+
+print "Getting fields mapping ...\n";
+get_fields_mapping(\&field_renamer);
+
+
+################################################################################
+
+
+rename_fields(@FILES);
+

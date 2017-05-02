@@ -1,0 +1,110 @@
+#!/usr/bin/perl
+# replace string refs in methods signatures in disassembled files
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+$| = 1;
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+my $re_class = qr|[0-9a-zA-Z_\$/]+|;
+my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
+my $re_method = qr|[0-9a-zA-Z_]+|;	# matches any method except <init>, <clinit>
+my $re_uconst = qr|\[u[0-9]+\]|;
+
+# Methods we want to rename
+my $re_meth_match = qr|[0-9a-zA-Z_<>]+|;		# any
+
+################################################################################
+
+use class_info;
+get_class_info(@FILES);
+
+################################################################################
+
+my %uconst;
+
+sub parse_uconst
+{
+    my ($asm) = @_;
+
+    open(IN, "< $asm") || die "couldn't open $asm";
+
+    my $classname;
+    while (my $s = <IN>)
+    {
+	if ($s =~ m|^\.class.* ($re_class) *$|)  { $classname = $1; }
+
+	if ($s =~ m|^\.const ($re_uconst) = Utf8 (.*)|)
+	{  
+	    my ($uconst, $str) = ($1, $2);
+	    $uconst{"$classname:$uconst"} = $str;
+	    #print "$classname:$uconst:$str\n";
+	}
+    }
+
+    close(IN);    
+}
+
+print "Looking up uconst strings ...\n";
+foreach my $file (@FILES_AND_EXT)
+{  
+    parse_uconst($file);
+}
+
+################################################################################
+
+
+sub fix_meth_uconst
+{
+    my ($asm) = @_;    
+    my $out = "${asm}.new";
+    my $classfile = "$asm"; $classfile =~ s|\.j|\.class|;
+    
+    open(IN, "< $asm") || die "couldn't open $asm";
+    open(OUT, "> $out") || die "couldn't write to $out";
+
+    my $classname;
+    for (; my $s = <IN>; print OUT $s)
+    {
+	if ($s =~ m|^\.class.* ($re_class) *$|)  {  $classname = $1;  }
+
+
+	if ($s =~ m|(^\.method.*) ($re_meth_match) : ($re_uconst) *$|)
+	{  
+	    my ($decl, $method, $uconst) = ($1, $2, $3);
+	    my $str = $uconst{"$classname:$uconst"};
+	    if ($str eq "") { die "$classname:$method: undefined uconst string '$uconst'"; }
+	    $s = sprintf("%s %s : %s \n", $decl, $method, $str);
+	}
+
+	# Note: beware invokeinterface's trailing number                v
+	#       invokeinterface InterfaceMethod java/util/List size ()I 1
+	if ($s =~ m|(^[L0-9: \t]*invoke\w* \w*Method) ($re_class) ($re_meth_match) ($re_uconst)(.*)|)
+	{ 
+	    my ($call, $class, $method, $uconst, $tail) = ($1, $2, $3, $4, $5);
+	    my $str = $uconst{"$classname:$uconst"};
+	    if ($str eq "") { die "$classname:$method: undefined uconst string '$uconst'"; }
+	    $s = sprintf("%s %s %s %s%s\n", $call, $class, $method, $str, $tail);
+	}
+    }
+    
+    close(OUT);
+    close(IN);
+    rename($out, $asm);
+    unlink($classfile);
+}
+
+print "Fixing methods uconst ...\n";
+# Fixes external cached classes as well !
+foreach my $file (@FILES_AND_EXT)
+{  
+    printf("%-70s\r", $file);
+    fix_meth_uconst($file);  
+}
+printf("%-70s\r", "");

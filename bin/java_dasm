@@ -1,0 +1,30 @@
+#!/bin/bash
+# wrapper for krakatau disassembler
+# make sure disassemble.py is reachable in your PATH
+
+
+die() { echo "$@"; exit 1; }
+[ -f "$1" ] || die "$1: no such file"
+
+cwd=$PWD
+fullfilename="$1"
+file="${1##*/}"		 # foo.class
+out="${file/.class/.j}"  # foo.j
+dir=`dirname "$1"`
+
+#echo "file: $file"
+#echo "out : $out"
+
+tmpdir=`mktemp -d /tmp/krakatau.XXXXXXXX`
+
+cp -p "$1" $tmpdir/
+cd $tmpdir
+disassemble.py "$file" >/dev/null
+
+# For make, so we don't have to reassemble unchanged files.
+touch -r "$file" "$out"
+
+cd "$cwd"
+mv "$tmpdir/$out" "$dir"
+
+rm -rf $tmpdir; 

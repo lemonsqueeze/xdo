@@ -1,0 +1,71 @@
+#!/usr/bin/perl
+# dump info on class hierachy and interfaces
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+################################################################################
+
+use class_info;
+get_class_info(@FILES);
+
+################################################################################
+
+print "Writing class_extends ...\n";
+open(OUT, "> ../class_extends");
+foreach my $classname (sort(keys(%classes)))
+{  print OUT "$classname:$extends{$classname}\n";  }
+close(OUT);
+
+print "Writing class_implements ...\n";
+open(OUT, "> ../class_implements");
+foreach my $classname (sort(keys(%classes)))
+{  print OUT "$classname:$implements{$classname}\n";  }
+close(OUT);
+
+print "Writing interfaces ...\n";
+open(OUT, "> ../interfaces");
+foreach my $interface (sort(keys(%interfaces)))
+{  print OUT "$interface\n";  }
+close(OUT);
+
+print "Writing class_hierarchy ...\n";
+open(OUT,  "> ../class_hierarchy");
+foreach my $class (sort(keys(%classes)))
+{
+    my $s = "";
+    if ($extended{$class}) { next; }
+    $s .= "$class";  $class = $extends{$class};
+    for (; $class ne ""; $class = $extends{$class})
+    {  $s .= " > $class";  }
+    
+    print OUT "$s\n";
+}
+close(OUT);
+
+print "Writing class_hierarchy_fancy ...\n";
+open(OUT, "> ../class_hierarchy_fancy");
+foreach my $class (sort(keys(%classes)))
+{
+    if ($extended{$class}) { next; }
+    my $indent = 0;
+    for (; $class ne ""; $class = $extends{$class}, $indent += 2)
+    {		
+	my $indented_class = sprintf("%*s%s", $indent, "", $class, $interfaces);
+	my $interfaces = $implements{$class};
+	if ($interfaces ne "") { $interfaces = "[ $interfaces ]"; }
+	printf OUT ("%-30s %s\n", $indented_class, $interfaces);
+    }
+    print OUT "\n";
+}
+
+
+# todo interfaces_implemented
+

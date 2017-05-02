@@ -1,0 +1,50 @@
+#!/bin/bash
+# open / create jar files
+
+die() { echo "$@" 1>&2; exit 1; }
+
+usage()
+{
+    echo "Usage: jar -x input.jar"
+    echo "       jar -c output.jar"
+    exit 1
+}
+
+
+extract()
+{
+    [ "$1" = "" ] || ! [ -f "$1" ] || [ "${1%.jar}" = "$1" ] && usage
+    
+    [ -d "jar" ] && die "jar/ directory exists. Close jar first."
+    mkdir jar || die "Couldn't create jar directory."
+    
+    echo "Extracting $1 ..."
+    unzip -q -d jar "$1"
+}
+
+
+pack()
+{
+    [ "$1" = "" ] || [ "${1%.jar}" = "$1" ] && usage
+    [ -d "jar" ] || die "no jar/ directory. Open jar first."
+    
+    # Ensure .class files are up to date before packing
+    $cmddir/asm
+
+    echo "Packing $1 ..."
+    if [ -f "jar/META-INF/MANIFEST.MF" ]; then
+	jar -cfm "$1" "jar/META-INF/MANIFEST.MF" -C jar .    
+    else
+	jar -cf "$1" -C jar .    
+fi
+}
+
+
+set -e
+cmd="$1"; shift
+[ "$cmd" = "-x" ] && extract "$@"
+[ "$cmd" = "-c" ] && pack "$@"
+
+
+
+

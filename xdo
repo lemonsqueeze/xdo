@@ -1,0 +1,44 @@
+#!/bin/bash
+
+# FIXME symlink
+export xdodir=`dirname "$0"` ;
+export cmddir="$xdodir/commands"
+export PATH="$xdodir/bin:$xdodir/Krakatau:$PATH"
+
+die() { echo "xdo: $@"; exit 1; }
+
+usage()
+{
+    cat <<-'EOF'
+	xdo - simple java deobfuscator and class manipulator based on Krakatau.
+
+	usage: xdo <command> [options]
+
+	available commands:
+	EOF
+
+    for f in `cd $cmddir; echo *`; do
+	printf "    %-20s " $f
+	cat $cmddir/$f | head -2 | tail -1 | tr -d '#'
+    done
+
+    cat <<-'EOF'
+
+	basic workflow:
+	    xdo jar -x file.jar
+	    xdo dasm
+	    xdo stuff, or hack .j files in jar/ directory ...
+	    xdo jar -c out.jar
+	    xdo done
+	EOF
+    exit 1
+}
+
+[ "$1" == "help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ] && usage
+[ "$1" != "" ] && ! [ -f "$cmddir/$1" ] && die "Unknown command '$1'"
+[ -f "$cmddir/$1" ] || usage
+[ -f "$xdodir/Krakatau/assemble.py" ] || die "Krakatau missing. Run setup_krakatau first."
+
+cmd=$1; shift
+$cmddir/$cmd "$@"
+

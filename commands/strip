@@ -1,0 +1,14 @@
+#!/bin/bash
+# delete all .j files from working dir
+
+die() { echo "$@" 1>&2; exit 1; }
+
+usage()
+{
+    echo "Usage: strip"
+    exit 1
+}
+
+[ -d "jar" ] || die "no jar/ directory. Open jar first."
+
+find . -name "*.j" | xargs rm

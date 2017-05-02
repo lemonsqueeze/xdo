@@ -1,0 +1,6 @@
+#!/bin/bash
+
+xdodir=`dirname "$0"` ;
+cd "$xdodir"
+[ -d Krakatau ] && exit 0
+git clone 'https://github.com/Storyyeller/Krakatau.git'
