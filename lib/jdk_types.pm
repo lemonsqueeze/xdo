@@ -4,9 +4,7 @@
 use File::Basename;
 use Cwd;
 
-my $jrelib = "/home/java/jdk1.8.0_65/jre/lib";
-
-my $confdir = "$ENV{HOME}/.jdasm";
+my $confdir = "$ENV{HOME}/.xdo";
 my $indexdir = "$confdir/index";
 my $cachedir = "$confdir/cache";
 
@@ -39,6 +37,13 @@ sub index_jar
     close(IN);
 }
 
+sub find_jrelib
+{
+    foreach my $s (split('\n', `java -verbose 2>/dev/null`))
+    {
+	if ($s =~ m|\[Opened (.*)/rt.jar\]|) {  return $1;  }
+    }
+}
 
 my $init = 0;
 sub init
@@ -46,6 +51,10 @@ sub init
     (-d $confdir) || mkdir($confdir) || die("couldn't create $confdir");
     (-d $indexdir) || mkdir($indexdir) || die("couldn't create $indexdir");
     (-d $cachedir) || mkdir($cachedir) || die("couldn't create $cachedir");    
+
+    my $jrelib = find_jrelib();
+    print "Found jre lib: $jrelib\n";
+    print "Building external classes cache ...\n";
 
     my @jars = glob("$jrelib/*.jar");
     foreach my $jar (@jars)
@@ -71,7 +80,7 @@ sub dasm_ext_class
     (-f "$class.class") || die("jar extract failed");
 
     # Ok, have class file. Disassemble
-    print "dasm $class\n";
+    print "DASM $class\n";
     run_cmd("java_dasm '$class.class'");
     (-f "$class.j") || die("java_dasm failed");
 
