@@ -18,7 +18,8 @@ sub class_mapping_for_file
 	if (!($s =~ m|^\.class.* $re_pathid  *$|))  {  next;  }
 	my $class = $1;
 	my $dest  = $renamer->($class);
-	$class_mapping{$class} = $dest;
+	if ($dest ne $class)
+	{   $class_mapping{$class} = $dest;  }
 
 	######################################################################
 	# Sanity checks	
@@ -77,7 +78,6 @@ sub move_class_file
     (-f "$class.j") || die "shouldn't happen";    
     
     my $dest = $class_mapping{$class};    
-    if ($dest eq $class) {  return 0;  }	# Identical files ? nothing to do
     $dest .= ".j";
     
     my $dir = dirname($dest);
@@ -85,6 +85,33 @@ sub move_class_file
 
     rename($asm, $dest) || die("error: rename $asm $dest failed, aborting.\n");
     return 1;
+}
+
+
+my $class_for_name = 0;
+my @warnings;
+
+sub class_for_name_warnings
+{
+    my ($asm, $s, $classname, $prev, $l) = @_;
+    if ($s =~ m|^[L0-9: \t]*invokestatic Method java/lang/Class forName|)
+    {   
+	$class_for_name = 1;    
+	if (($prev =~ m|^[L0-9: \t]*ldc '(.*)'|) && $class_mapping{$1})
+	{   
+	    my $file = ($class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
+	    push(@warnings, sprintf("%s:%i:  $prev", $file, $l - 1));
+	}
+    }
+    
+    if (($s =~ m|^[L0-9: \t]*ldc '(.*)'|) && length($1) >= 5)
+    {   
+	my $c = $1;  $c =~ s|\.|/|g;
+	if ($class_mapping{$c}) {
+	    my $file = ($class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
+	    push(@warnings, sprintf("%s:%i:  $s", $file, $l));
+	}
+    }    
 }
 
 
@@ -140,7 +167,6 @@ my $re_multi_bare = combine_regexps(
 my $re_std_type = qr/[A-KM-Z]/;
 my $re_before_types = qr/(?|^|[ ;()[])/;
 
-
 sub rename_types_in_file
 {
     my ($asm) = @_;
@@ -153,7 +179,9 @@ sub rename_types_in_file
     my $innerclasses_mode = 0;
     my $localvariabletable_mode = 0;
     my $classname;
-    for (; my $s = <IN>; print OUT $s)
+    for (my $l = 1, my $prev = "";  
+	 my $s = <IN>;  
+	 $l++, $prev = $s, print OUT $s)
     {
 	if ($s =~ m/^\.innerclasses/)     { $innerclasses_mode = 1; next; }
 	if ($s =~ m/^\.end innerclasses/) { $innerclasses_mode = 0; }
@@ -166,6 +194,9 @@ sub rename_types_in_file
 	    {  	$s =   " L$class_mapping{$1}; ";  }
 	    next; 
 	}
+
+	# Class.forName() Warnings
+	class_for_name_warnings($asm, $s, $classname, $prev, $l);
 	
 	if ($s =~ m/$re_escaped_instr/)
 	{
@@ -248,6 +279,14 @@ sub rename_classes
     }
     printf("%-70s\r", "");
     printf("Renamed %i classes\n", $renamed_classes);
+
+    if ($class_for_name)
+    {
+	print "\nwarning: app uses Class.forName(), moving classes may break it.\n";
+	if (@warnings) {  print "following lines look like hardcoded renamed classes:\n"; }
+	foreach my $s (@warnings)
+	{  print $s;  }
+    }
 }
 
 
