@@ -1,0 +1,30 @@
+xdo
+
+simple java deobfuscator and class manipulator based on Krakatau.
+
+
+usage: xdo <command> [options]
+
+available commands:
+    asm                   assemble classes
+    classinfo             dump info on class hierachy and interfaces
+    dasm                  disassemble classes
+    deoverload            deoverload (rename) methods
+    done                  wipe out working directory
+    dump_stringtable      nothing yet
+    jar                   open / create jar files
+    move                  move or rename classes and fix all references to them in others
+    nodefpkg              move all classes out of the default package
+    renfields             rename all fields based on field type
+    renmethods            rename obfuscated methods based on defining class
+    restoredbginfo        recreate localvariabletable (debug methods arguments in jdb)
+    strip                 delete all .j files from working dir
+    uconstfix             replace string refs in methods signatures in disassembled files
+
+basic workflow:
+    xdo jar -x file.jar
+    xdo dasm
+    xdo stuff, or hack .j files in jar/ directory ...
+    xdo jar -c out.jar
+    xdo done
+
