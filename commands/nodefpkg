@@ -1,4 +1,4 @@
 #!/bin/bash
 # move all classes out of the default package
 
-$cmddir/move '*' 'pkg/$1'
+"$cmddir/move" '*' 'pkg/$1'

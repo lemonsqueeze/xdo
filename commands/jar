@@ -29,7 +29,7 @@ pack()
     [ -d "jar" ] || die "no jar/ directory. Open jar first."
     
     # Ensure .class files are up to date before packing
-    $cmddir/asm
+    "$cmddir/asm"
 
     echo "Packing $1 ..."
     if [ -f "jar/META-INF/MANIFEST.MF" ]; then

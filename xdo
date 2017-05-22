@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# FIXME symlink
-export xdodir=`dirname "$0"` ;
+export xdodir="${BASH_SOURCE%/*}"
+[ -h "$0" ] && export xdodir=$(dirname "$(readlink -f "$0")")
 export cmddir="$xdodir/commands"
 export PATH="$xdodir/bin:$xdodir/Krakatau:$PATH"
 
@@ -17,9 +17,9 @@ usage()
 	available commands:
 	EOF
 
-    for f in `cd $cmddir; echo *`; do
+    for f in `cd "$cmddir"; echo *`; do
 	printf "    %-20s " $f
-	cat $cmddir/$f | head -2 | tail -1 | tr -d '#'
+	cat "$cmddir/$f" | head -2 | tail -1 | tr -d '#'
     done
 
     cat <<-'EOF'
@@ -34,11 +34,17 @@ usage()
     exit 1
 }
 
+[ -d "$cmddir" ] || die "commands dir not found, this is bad"
 [ "$1" == "help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ] && usage
 [ "$1" != "" ] && ! [ -f "$cmddir/$1" ] && die "Unknown command '$1'"
 [ -f "$cmddir/$1" ] || usage
-[ -f "$xdodir/Krakatau/assemble.py" ] || die "Krakatau missing. Run setup_krakatau first."
 
-cmd=$1; shift
-$cmddir/$cmd "$@"
+if ! [ -f "$xdodir/Krakatau/assemble.py" ]; then
+    echo "Krakatau is missing, clone repo first:"
+    echo "    git clone https://github.com/Storyyeller/Krakatau.git"
+    exit 1
+fi
+
+cmd="$1"; shift
+"$cmddir/$cmd" "$@"
 
