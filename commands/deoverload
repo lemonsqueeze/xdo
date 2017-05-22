@@ -4,6 +4,33 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 $| = 1;
 
+sub usage
+{    
+    print q{
+deoverload methods:
+
+    Class Foo
+    {
+        public void a()
+        public void a(int i)
+        public void a(String s)
+    }
+
+becomes (if methods 'a' are free to rename):
+
+    Class Foo
+    {
+        public void a()
+        public void a1(int i)
+        public void a2(String s)
+    }
+
+};
+    exit 1;
+}
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";
 

@@ -4,6 +4,47 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 $| = 1;
 
+sub usage
+{    
+    print q{
+rename obfuscated methods based on defining class to remove any ambiguities
+and make it pretty clear what methods are being called and where they come from:
+
+    Class ab
+    {
+        public void a()
+        public void a(int i)
+        public void a(String s)      // overridden method from class 'tt'
+    }
+
+    Class ac
+    {
+        public void a()
+        public void a(int i)
+    }
+
+are renamed as:
+
+    Class ab
+    {
+        public void ab_a()
+        public void ab_a(int i)
+        public void tt_a(String s)   // overridden method from class 'tt' 
+    }
+
+    Class ac
+    {
+        public void ac_a()
+        public void ac_a(int i)
+    }
+
+
+};
+    exit 1;
+};
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";
 

@@ -28,7 +28,7 @@ sub check_method_type
 {
     my ($file, $class, $method, $type) = @_;
     if ($type =~ m|^$re_uconst|) {  die "$file: $class.$method() call: uconst type found\n" .
-					"run fix_methods_uconst first\n"; }
+					"run xdo uconstfix first\n"; }
     if (!($type =~ m|^\(|)) {  die "$file: $class.$method() call: unhandled method type '$type'"; }
 }
 

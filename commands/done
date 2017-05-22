@@ -3,12 +3,6 @@
 
 die() { echo "$@" 1>&2; exit 1; }
 
-usage()
-{
-    echo "Usage: done"
-    exit 1
-}
-
 [ -d "jar" ] || die "no jar/ directory. Open jar first "
 
 rm -rf jar

@@ -5,11 +5,16 @@ die() { echo "$@" 1>&2; exit 1; }
 
 usage()
 {
-    echo "Usage: jar -x input.jar"
-    echo "       jar -c output.jar"
+    cat <<-'EOF'
+	usage: xdo jar -x input.jar
+	       xdo jar -c output.jar
+	
+	extract or create jar files
+	EOF
     exit 1
 }
 
+[ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] && usage
 
 extract()
 {

@@ -4,6 +4,49 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 $| = 1;
 
+sub usage
+{    
+    print q{
+recreate localvariabletable for each method to allow debugging methods arguments in jdb,
+which is not available for obfuscated code normally:
+
+  $ jdb -classpath file.jar
+  > stop in main.class.main(java.lang.String[])
+  > run main.class --supercalifragilisticexpialidocious
+  Breakpoint hit: "thread=main", main.class.main(), line=62 bci=0
+  > where
+  [1] main.class.main (app: 62)
+  > locals
+  Local variable information not available.  Compile with -g to generate variable information
+
+let's restore debug info:
+
+  $ xdo jar -x file.jar
+  $ xdo dasm
+  $ xdo restoredbginfo
+  $ xdo jar -c file_dbg.jar
+
+now 'locals' can tell us about methods arguments:
+
+  $ jdb -classpath file_dbg.jar
+  > stop in main.class.main(java.lang.String[])
+  > run main.class --supercalifragilisticexpialidocious
+  Breakpoint hit: "thread=main", main.class.main(), line=62 bci=0
+  > where
+  [1] main.class.main (app: 62)
+  > locals
+  main[1] locals
+  Method arguments:
+  arr1 = instance of java.lang.String[0] (id=434)
+  > print arr1[0]
+  arr1[0] = "--supercalifragilisticexpialidocious"
+
+};
+    exit 1;
+}
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";
 
@@ -28,7 +71,7 @@ sub check_method_type
 {
     my ($file, $class, $method, $type) = @_;
     if ($type =~ m|^$re_uconst|) {  die "$file: $class.$method() call: uconst type found\n" .
-					"run fix_methods_uconst first\n"; }
+					"run xdo uconstfix first\n"; }
     if (!($type =~ m|^\(|)) {  die "$file: $class.$method() call: unhandled method type '$type'"; }
 }
 

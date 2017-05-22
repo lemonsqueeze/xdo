@@ -35,7 +35,7 @@ usage()
 }
 
 [ -d "$cmddir" ] || die "commands dir not found, this is bad"
-[ "$1" == "help" ] || [ "$1" == "--help" ] || [ "$1" == "-h" ] && usage
+[ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] && usage
 [ "$1" != "" ] && ! [ -f "$cmddir/$1" ] && die "Unknown command '$1'"
 [ -f "$cmddir/$1" ] || usage
 

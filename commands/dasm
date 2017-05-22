@@ -5,15 +5,18 @@ die() { echo "$@" 1>&2; exit 1; }
 
 usage()
 {
-    echo "Usage: dasm [file.class ...]"
-    echo ""
-    echo "  Without arguments, disassemble all classes in currently extracted jar."
-    echo "  (disassembled classes which are up-to-date are not disassembled again)"
-    echo ""
-    echo "  If class files are specified, just disassemble these."
+    cat <<-'EOF'
+	usage: xdo dasm [file.class ...]
+
+	Without arguments, disassemble all classes in currently extracted jar.
+	(disassembled classes which are up-to-date are not disassembled again)
+
+	If class files are specified, just disassemble these.
+	EOF
     exit 1
 }
 
+[ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] && usage
 
 # Standalone mode
 if [ "$1" != "" ]; then
@@ -26,7 +29,7 @@ fi
 
 [ -d "jar" ] || die "no jar/ directory. Open jar first "
 
-dasm()
+dasm_all()
 {
     cat > Makefile.xdo <<'EOF'
 CLASSES  = $(shell find . -name "*.class")
@@ -47,9 +50,8 @@ EOF
 }
 
 set -e
-
 cd jar
 n=`find . -name "*.class" | wc -l`
 [ "$n" = 0 ] && die "No input files. Files already disassembled ?"
-dasm
+dasm_all
 

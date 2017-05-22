@@ -1,4 +1,15 @@
 #!/bin/bash
 # move all classes out of the default package
 
+usage()
+{
+    cat <<-'EOF'
+	move all classes out of the default package.
+	same as xdo move '*' 'pkg/$1'
+	EOF
+    exit 1
+}
+
+[ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] && usage
+
 "$cmddir/move" '*' 'pkg/$1'

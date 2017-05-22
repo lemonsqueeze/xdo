@@ -5,15 +5,18 @@ die() { echo "$@" 1>&2; exit 1; }
 
 usage()
 {
-    echo "Usage: asm [file.j ...]"
-    echo ""
-    echo "  Without arguments, assemble all classes in currently extracted jar."
-    echo "  (classes which are up-to-date are not assembled again)"
-    echo ""
-    echo "  If class files are specified, just disassemble these."
+    cat <<-'EOF'
+	usage: xdo asm [file.j ...]
+
+	Without arguments, assemble all classes in currently extracted jar.
+	(classes which are up-to-date are not assembled again)
+
+	If .j files are specified, just assemble these.
+	EOF
     exit 1
 }
 
+[ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] && usage
 
 # Standalone mode
 if [ "$1" != "" ]; then
@@ -26,7 +29,7 @@ fi
 
 [ -d "jar" ] || die "no jar/ directory. Open jar first "
 
-asm()
+asm_all()
 {
     cat > Makefile.xdo <<'EOF'
 SRCJ     = $(shell find . -name "*.j" )
@@ -47,8 +50,8 @@ EOF
 }
 
 set -e
-
 cd jar
 n=`find . -name "*.j" | wc -l`
 [ "$n" = 0 ] && die "No input files. dasm first ?"
-asm 
+asm_all
+

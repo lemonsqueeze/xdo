@@ -4,6 +4,41 @@ use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 $| = 1;
 
+sub usage
+{    
+    print q{
+rename all fields based on field type.
+
+For example
+
+  class Foo
+  {
+      String a;
+      int b;
+      int c;
+      Object d;
+      Object e;
+      int f;
+  }
+
+is renamed as:
+
+  class Foo
+  {
+      String String1;
+      int i1;
+      int i2;
+      Object Object1;
+      Object Object2;
+      int i3;
+  }
+
+};
+    exit 1;
+}
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";
 
