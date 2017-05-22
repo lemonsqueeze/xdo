@@ -4,8 +4,8 @@ use File::Basename;
 
 my $re_pathid      = qr|([0-9a-zA-Z_\$/]*)|;
 
-my %class_mapping;
-my %rev_class_mapping;
+%class_mapping;
+%rev_class_mapping;
 
 sub class_mapping_for_file
 {
@@ -54,17 +54,16 @@ sub class_mapping_for_file
 }
 
 # First pass: figure out class mapping and do some sanity checks.
-# $renamer is called to do the actual renaming
+# $renamer is called to do the actual renaming.
+# Process inner classes last to make renamer's life easier.
 sub get_class_mapping
 {
     my ($renamer, $files) = @_;
     
     print "Looking up classes ...\n";
     my $renames = 0;
-    foreach my $file (@$files)
-    {
-	$renames += class_mapping_for_file($file, $renamer);
-    }
+    foreach my $file (grep(!/\$/, @$files))  {  $renames += class_mapping_for_file($file, $renamer);  }
+    foreach my $file (grep(/\$/,  @$files))  {  $renames += class_mapping_for_file($file, $renamer);  }
     if (!$renames) { print "No classes to rename.\n"; exit 0; }
 }
 

@@ -5,40 +5,52 @@ use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 
 $| = 1;
 
-(-d "jar") || die "No jar directory, open a jar first.\n";
-chdir "jar" || die "Couldn't cd jar/\n";
-
 sub usage
 {    
 print q{
-Usage: xdo move <src> <dest>
+Usage: xdo move [options] <src> <dest>
 
-Move/rename java classes matching <src> and fixes all
-references to renamed classes.
+Move/rename java classes matching <src> and fix all references
+to renamed classes.
 
 <src> may contain '*' and '**' wildcards:
   '*'  matches any single class or directory
   '**' matches any class at any depth further down
 
 Corresponding matches may be referred to as $1, $2 etc in <dest>,
-while $0 is the full class name. Renames may not result in clashes
-or you'll get an error.
+while $0 is the full class name. Renames may not result in clashes.
+
+Options:
+  --auto-rename   automatically rename classes to avoid clashes
 
 Examples:
-  move '*' 'pkg/$1'
-      move all classes in default package to pkg
+  move pkg/Foo  pkg/Bar
+      rename one class
 
-  move '**' 'pkg/$1'
-      move *all* classes to pkg
+  move '*'  'pkg/$1'
+      move all classes in default package to pkg/
 
-  move '**/Net*' 'org/app/net/$2'
-      group all network classes together
+  move '**/*'  'pkg/$2'
+      flatten out all other classes to pkg/
 
+  move 'google/**'  'thirdparty/google/$1'
+      repackage google classes under thirdparty/
 };
     exit 1;
 }
 
-if ($ARGV[0] =~ m/^(-h|-help|--help)/) { usage(); }
+
+my $auto_rename = 0;
+
+for (; $ARGV[0] =~ m/^-/; shift @ARGV)
+{
+    if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+    if ($ARGV[0] eq "--auto-rename")  {  $auto_rename = 1; next; }
+    die "unknown option: $ARGV[0]\n";
+}
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
 
 open(FILES, "find . -name '*.j' |");
 my @FILES = <FILES>;  chomp(@FILES);
@@ -64,8 +76,7 @@ $re_match =~ s|<starstar>|$pathid|g;
 $re_match = qr|($re_match)|;
 
 my $re_dest = $ARGV[1];
-if ($re_dest eq "" || !($re_dest =~ m/\$/) ||
-    !($re_dest =~ m/^$valid_pattern$/)) { die "Invalid destination: '$ARGV[1]'\n"; }
+if ($re_dest eq "" || !($re_dest =~ m/^$valid_pattern$/)) { die "Invalid destination: '$ARGV[1]'\n"; }
 # and quote for future eval
 $re_dest = '"' . $re_dest . '"';
 # and bump up ref numbers ('$0' becomes '$1', '$1' becomes '$2' etc)
@@ -86,6 +97,33 @@ $re_dest =~ s|\$([0-9]+)| '$' . ($1 + 1) |eg;
 
 use rename_classes;
 
+sub autorename_renamer
+{
+    my ($class) = @_;
+
+    # Keep inner and outer classes together.
+    # Works as long as inner classes are processed after outer.
+    if ($class =~ m|^([^\$]*)\$(.*)$|)
+    {
+	my ($outer, $inner) = ($1, $2);
+	if ($class_mapping{$outer})
+	{   return "$class_mapping{$outer}\$$inner";   }
+    }
+
+    my $newclass = $class;
+    $newclass =~ s|^$re_match$|$re_dest|ee;
+    
+    if ($newclass ne $class)
+    {
+	my $orig = $newclass;
+	for (my $x = "a";  (-f "$newclass.j") || $rev_class_mapping{$newclass};  $x++)
+	{    $newclass = "$orig$x";    }
+	if ($newclass ne $orig)  {  print "auto_rename: $class -> $newclass\n";  }
+    }
+    
+    return $newclass;
+}
+
 sub regexp_renamer
 {
     my ($class) = @_;
@@ -93,8 +131,13 @@ sub regexp_renamer
     return $class;
 }
 
+
 # First pass: get class mappings and sanity checks
-get_class_mapping(\&regexp_renamer, \@FILES);
+if ($auto_rename)
+{   get_class_mapping(\&autorename_renamer, \@FILES);  }
+else
+{   get_class_mapping(\&regexp_renamer, \@FILES);  }
+
 
 # Main loop
 rename_classes(@FILES);
