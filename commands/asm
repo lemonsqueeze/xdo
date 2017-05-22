@@ -38,9 +38,11 @@ all: $(CLASSES)
 	@echo ASM '$<'
 	@java_asm '$<'
 EOF
-
-    cpus=`cat /proc/cpuinfo | grep processor | wc -l`
-    make -f Makefile.xdo -j$cpus all
+    jobs=1
+    if [ -f /proc/cpuinfo ]; then
+	jobs=`cat /proc/cpuinfo | grep processor | wc -l`
+    fi
+    make -f Makefile.xdo -j$jobs all
     rm Makefile.xdo    
 }
 
