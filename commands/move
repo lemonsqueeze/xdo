@@ -134,9 +134,9 @@ sub regexp_renamer
 
 # First pass: get class mappings and sanity checks
 if ($auto_rename)
-{   get_class_mapping(\&autorename_renamer, \@FILES);  }
+{   get_class_mapping(\@FILES, \&autorename_renamer, 1);  }
 else
-{   get_class_mapping(\&regexp_renamer, \@FILES);  }
+{   get_class_mapping(\@FILES, \&regexp_renamer, 1);  }
 
 
 # Main loop

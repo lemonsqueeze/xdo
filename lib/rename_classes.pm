@@ -7,9 +7,35 @@ my $re_pathid      = qr|([0-9a-zA-Z_\$/]*)|;
 %class_mapping;
 %rev_class_mapping;
 
+# Sanity checks	
+sub rename_checks
+{
+    my ($class, $dest, $asm) = @_;
+
+    my $base = $asm;  $base =~ s|\.j||;
+    if ($base ne $class) 
+    {
+	die "error: bad location:\n" .
+	    "file '$asm' should be in '$class.j' according to class name\n" 
+    }
+    if ($dest =~ m|/$|) 
+    {   die "error: bad pattern, would rename '$class' to '$dest'\n";   }
+    if (-f "$dest.j" && $class ne $dest) 
+    {
+	die "error: clash moving '$class' to '$dest' :\n" .
+	    "'$dest' already exists.\n";  
+    }
+    if ($rev_class_mapping{$dest} ne "")
+    { 
+	die "error: '$class' \n" . 
+	    "  and  '$rev_class_mapping{$dest}' \n" . 
+	    "  would both end up in '$dest'\n";  
+    }
+}
+
 sub class_mapping_for_file
 {
-    my ($asm, $renamer) = @_;
+    my ($asm, $renamer, $checks) = @_;
     my $r = 0;
 
     open(IN, "< $asm") || die "couldn't open $asm\n";
@@ -21,29 +47,8 @@ sub class_mapping_for_file
 	if ($dest ne $class)
 	{   $class_mapping{$class} = $dest;  }
 
-	######################################################################
-	# Sanity checks	
-	
-	my $base = $asm;  $base =~ s|\.j||;
-	if ($base ne $class) 
-	{
-	    die "error: bad location:\n" .
-		"file '$asm' should be in '$class.j' according to class name\n" 
-	}
-	if ($dest =~ m|/$|) 
-	{   die "error: bad pattern, would rename '$class' to '$dest'\n";   }
-	if (-f "$dest.j" && $class ne $dest) 
-	{
-	    die "error: clash moving '$class' to '$dest' :\n" .
-		"'$dest' already exists.\n";  
-	}
-	if ($rev_class_mapping{$dest} ne "")
-	{ 
-	    die "error: '$class' \n" . 
-		"  and  '$rev_class_mapping{$dest}' \n" . 
-		"  would both end up in '$dest'\n";  
-	}
-	#######################################################################
+	if ($checks)
+	{   rename_checks($class, $dest, $asm);  }
 	
 	$rev_class_mapping{$dest} = $class;
 	$r = ($class ne $dest);
@@ -58,12 +63,12 @@ sub class_mapping_for_file
 # Process inner classes last to make renamer's life easier.
 sub get_class_mapping
 {
-    my ($renamer, $files) = @_;
+    my ($files, $renamer, $checks) = @_;
     
     print "Looking up classes ...\n";
     my $renames = 0;
-    foreach my $file (grep(!/\$/, @$files))  {  $renames += class_mapping_for_file($file, $renamer);  }
-    foreach my $file (grep(/\$/,  @$files))  {  $renames += class_mapping_for_file($file, $renamer);  }
+    foreach my $file (grep(!/\$/, @$files)) {  $renames += class_mapping_for_file($file, $renamer, $checks);  }
+    foreach my $file (grep(/\$/,  @$files)) {  $renames += class_mapping_for_file($file, $renamer, $checks);  }
     if (!$renames) { print "No classes to rename.\n"; exit 0; }
 }
 
@@ -83,7 +88,6 @@ sub move_class_file
     make_path($dir);
 
     rename($asm, $dest) || die("error: rename $asm $dest failed, aborting.\n");
-    return 1;
 }
 
 
@@ -168,7 +172,7 @@ my $re_before_types = qr/(?|^|[ ;()[])/;
 
 sub rename_types_in_file
 {
-    my ($asm) = @_;
+    my ($asm, $rename_file, $extra_parser) = @_;
     my $out = "${asm}.new";
     my $classfile = "$asm"; $classfile =~ s|\.j|\.class|;
 
@@ -182,6 +186,8 @@ sub rename_types_in_file
 	 my $s = <IN>;  
 	 $l++, $prev = $s, print OUT $s)
     {
+	if ($extra_parser)  {  $s = $extra_parser->($s, $asm, $classname);  }
+
 	if ($s =~ m/^\.innerclasses/)     { $innerclasses_mode = 1; next; }
 	if ($s =~ m/^\.end innerclasses/) { $innerclasses_mode = 0; }
 
@@ -190,7 +196,7 @@ sub rename_types_in_file
 	if ($localvariabletable_mode)
 	{   
 	    if ($s =~ m/ L$re_pathid; / && $class_mapping{$1})
-	    {  	$s =   " L$class_mapping{$1}; ";  }
+	    {  	$s =   "$` L$class_mapping{$1}; $'";  }
 	    next; 
 	}
 
@@ -258,11 +264,13 @@ sub rename_types_in_file
     close(IN);
     close(OUT);
 
-    rename($out, $asm);
-    unlink($classfile);
-    
-    if ($classname eq "")  {  return 0;  }
-    return move_class_file($asm, $classname);
+    if ($rename_file)
+    {
+	rename($out, $asm);
+	unlink($classfile);	
+	if ($classname)  {  move_class_file($asm, $classname);  }	
+    }
+    return ($classname ne "");
 }
 
 
@@ -274,7 +282,7 @@ sub rename_classes
     foreach my $file (@FILES)
     {  
 	printf("%-70s\r", $file);    
-	$renamed_classes += rename_types_in_file($file);
+	$renamed_classes += rename_types_in_file($file, 1);
     }
     printf("%-70s\r", "");
     printf("Renamed %i classes\n", $renamed_classes);

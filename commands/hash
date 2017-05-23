@@ -1,0 +1,215 @@
+#!/usr/bin/perl
+# hash classes to help identify them across renames / version changes
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+use Digest::SHA;
+
+$| = 1;
+
+sub usage
+{    
+print q{
+hash classes to help identify them across renames / version changes
+
+usage: xdo hash [options]
+
+Prints hashes for each class. There are two hashes:
+The first hash, "sighash", is based only on the class signature
+(public methods and fields basically) while the second, "bytehash",
+is based on the class' bytecode signature.
+
+sighash is interesting because it's unaffected by implementation
+changes. Only when a class api changes (say a new public method
+is added or removed) does sighash change. It doesn't contain
+much information about the class however, so for small classes
+with very few methods there will be lots of collisions.
+
+bytehash is the opposite: it contains information about every
+bytecode instruction so if the same bytehash is found in two
+different codebases it almost certainly points to the same
+class (especially if the class is big). The slightest
+implementation change changes it however.
+
+Both hashes are identifier proof: a class' hashes will remain
+the same even if it's renamed, its fields, methods or the types
+it uses are renamed.
+
+Options:
+  --keep-sig       keep .sig files around (normally deleted)                   
+  --cleanup        remove .sig files from previous run
+
+};
+    exit 1;
+}
+
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+
+my $keep_sig = 0;
+for (; $ARGV[0] =~ m/^-/; shift @ARGV)
+{
+    if ($ARGV[0] eq "--keep-sig")  {  $keep_sig = 1; next;  }
+    if ($ARGV[0] eq "--cleanup")   {  cleanup_sigs();  }
+    die "unknown option: $ARGV[0]\n";
+}
+
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+foreach (@FILES) {  s|^./||;  }
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+
+################################################################################
+
+use class_info;
+get_class_info(@FILES);
+
+##########################################################################
+
+use rename_classes;
+
+sub bleach_renamer
+{
+    my ($class) = @_;
+    return "Foo";
+}
+
+# Wipe out all internal types
+get_class_mapping(\@FILES, \&bleach_renamer, 0);  
+
+
+############################################################################
+
+my $re_class = qr|[0-9a-zA-Z_\$/]+|;
+my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
+
+sub bleached_class_hierarchy
+{
+    my ($class) = @_;
+    my $s = "";
+    for (; $class ne ""; $class = $extends{$class})
+    {  
+	if (external_class($class))
+	{   $s .= "$class ";  last;  }
+	else
+	{   $s .= "Foo ";   }
+    }
+    return $s;
+}
+
+
+sub class_signature
+{
+    my ($class) = @_;
+    open(IN,  "< ${class}.j.new") || die "couldn't open ${class}.j.new";
+    open(OUT, "> ${class}.sig") || die "couldn't write ${class}.sig";
+
+    my @signature = (sprintf(".class_hierarchy %s\n", bleached_class_hierarchy($class)));
+    
+    foreach my $s (<IN>)
+    {
+	if ($s =~ m|^\.| &&
+	    !($s =~ m/(?:^\.(end|version|const|super)|private)/))
+	{   push(@signature, $s);  }	
+    }
+
+    @signature = sort(@signature);
+    print OUT @signature;   
+
+    close(IN);
+    close(OUT);
+}
+
+use rename_methods;
+my $localvariabletable_mode = 0;
+my $linenumbertable_mode = 0;
+
+sub bleach_ids_and_tables
+{
+    my ($s, $asm, $classname) = @_;
+
+    if ($s =~ m/^\.(sourcefile|version)/)  {  return ""; }
+
+    # Remove linenumbertable, localvariabletable
+    if ($s =~ m/^ *\.localvariabletable/)      { $localvariabletable_mode = 1; return ""; }	
+    if ($s =~ m/^ *\.end localvariabletable/)  { $localvariabletable_mode = 0; return ""; }
+    if ($localvariabletable_mode) { return ""; }
+    
+    if ($s =~ m/^ *\.linenumbertable/)      { $linenumbertable_mode = 1; return ""; }	
+    if ($s =~ m/^ *\.end linenumbertable/)  { $linenumbertable_mode = 0; return ""; }
+    if ($linenumbertable_mode) { return ""; }
+    
+
+    # Erase method ids
+    if ($s =~ m|(^\.method.*) (\w+) : ([^ ]*)|)
+    {  
+	my ($decl, $method, $type) = ($1, $2, $3);
+	check_method_type($asm, $classname, $method, $type);
+	$s = sprintf("%s %s : %s \n", $decl, "method", $type);
+    }
+
+    if ($s =~ m|(^[L0-9: \t]*invoke\w* \w*Method) ($re_class) (\w+) ([^ ]*)(.*)|)
+    {
+	my ($call, $class, $method, $type, $tail) = ($1, $2, $3, $4, $5);
+	check_method_type($asm, $class, $method, $type);
+	if (!external_class($class))
+	{
+	    $s = sprintf("%s %s %s %s%s\n", $call, $class, "method", $type, $tail);
+	}
+    }
+
+    # Erase field ids
+    if ($s =~ m|(^\.field.*) (\w+) ($re_types) *$|)
+    {  
+	my ($decl, $field, $type) = ($1, $2, $3);
+	$s = "$decl field $type \n";
+    }
+
+    if ($s =~ m|(^[L0-9: \t]*\w+ Field) ($re_class) (\w+) ($re_types) *$|)
+    {
+	my ($call, $class, $field, $type) = ($1, $2, $3, $4);
+	$s = "$call $class field $type \n";
+    }
+    return $s;
+}
+
+sub digest
+{
+    my ($file) = @_;
+    my $sha = Digest::SHA->new(1);    
+    $sha->addfile($file);
+    return substr($sha->hexdigest, 0, 8);
+}
+
+sub cleanup_sigs
+{
+    system("find . -name '*.sig' | xargs -r rm");
+    exit 0;
+}
+
+sub hash_classes
+{
+    foreach my $file (@FILES)
+    {  
+	my $class = "$file"; $class =~ s|\.j||;
+
+	rename_types_in_file($file, 0, \&bleach_ids_and_tables);
+	class_signature($class);
+
+	printf("%s %s %s\n", digest("${class}.sig"), digest("${file}.new"), $class);
+
+	if ($keep_sig) {  rename("${file}.new", "${file}.sig");  }
+	else	       {  unlink("${file}.new");  unlink("${class}.sig");  }
+    }
+
+
+}
+
+
+hash_classes();
+

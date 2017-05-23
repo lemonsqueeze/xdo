@@ -1,17 +1,16 @@
-xdo
-
-simple java deobfuscator and class manipulator based on Krakatau.
-
+xdo - simple java deobfuscator and class manipulator based on Krakatau.
 
 usage: xdo <command> [options]
 
 available commands:
     asm                   assemble classes
     classinfo             dump info on class hierachy and interfaces
+    clearcache            clear external classes cache
     dasm                  disassemble classes
     deoverload            deoverload (rename) methods
     done                  wipe out working directory
     dump_stringtable      nothing yet
+    hashes                identify identical classes across version changes
     jar                   open / create jar files
     move                  move or rename classes and fix all references to them in others
     nodefpkg              move all classes out of the default package
@@ -27,4 +26,3 @@ basic workflow:
     xdo stuff, or hack .j files in jar/ directory ...
     xdo jar -c out.jar
     xdo done
-
