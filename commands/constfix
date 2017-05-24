@@ -1,0 +1,146 @@
+#!/usr/bin/perl
+# fix class / string refs in disassembled files
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+use common;
+
+global_init();
+
+sub usage
+{    
+    print q{
+usage: xdo constfix [-cp classpath]
+
+Replace constant strings / class references in disassembled files
+to make xdo parser's life easier.
+
+};
+    exit 1;
+}
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+# Methods we want to rename
+my $re_meth_match = qr|[0-9a-zA-Z_<>]+|;		# any
+
+################################################################################
+
+use class_info;
+get_class_info(@FILES);
+
+################################################################################
+
+my $re_const = qr|\[([a-z0-9]+)\]|;
+my %const;
+
+sub parse_consts
+{
+    my ($asm) = @_;
+
+    open(IN, "< $asm") || die "couldn't open $asm";
+
+    my $classname;
+    while (my $s = <IN>)
+    {
+	if (my %c = parse_class($s, $asm))  {  $classname = $c{class};  }
+
+	if ($s =~ m|^\.const $re_const = Utf8 (.*) $|   ||
+	    $s =~ m|^\.const $re_const = Class (.*) $|  ||
+	    $s =~ m|^\.const $re_const = (.*) $|)
+	{  
+	    my ($name, $val) = ($1, $2);
+	    $const{"$classname:$name"} = $val;
+	    #print "$classname:$name:$val\n";
+	}
+    }
+
+    close(IN);    
+}
+
+print "Looking up consts ...\n";
+foreach my $file (@FILES_AND_EXT)
+{  
+    parse_consts($file);
+}
+
+################################################################################
+
+
+sub file_fix_const
+{
+    my ($asm) = @_;    
+    my $out = "${asm}.new";
+    my $classfile = "$asm"; $classfile =~ s|\.j|\.class|;
+    
+    open(IN, "< $asm") || die "couldn't open $asm";
+    open(OUT, "> $out") || die "couldn't write to $out";
+
+    my $classname;
+    for (; my $s = <IN>; print OUT $s)
+    {
+	if (my %c = parse_class($s, $asm))  {  $classname = $c{class};  }
+
+	my %m = parse_method($s, $asm);
+	while (%m && $m{type} =~ m/^$re_const$/)
+	{
+	    $m{type} = $const{"$classname:$1"};
+	    $m{type} || die "$asm: undefined const string '[$1]'\n$s\n";
+	}
+	if (%m)
+	{   $s = make_method(%m);  }
+
+
+	while ($s =~ m|^([L0-9: \t]*invokedynamic .*)$re_const(.*)$|)
+	{
+	    my $val = $2;
+	    my $val = $const{"$classname:$2"};
+	    $val || die "$asm: undefined const string '[$2]'\n$s\n";
+	    $s = "$1$val$3\n";
+	}
+
+
+	my %m = parse_method_call($s, $asm);
+	while (%m && $m{type} =~ m/^$re_const$/)
+	{
+	    $m{type} = $const{"$classname:$1"};
+	    $m{type} || die "$asm: undefined const string '[$1]'\n$s\n";
+	}
+	while (%m && $m{class} =~ m/^$re_const$/)
+	{
+	    $m{class} = $const{"$classname:$1"};
+	    $m{class} || die "$asm: undefined const string '[$1]'\n$s\n";
+	}
+	if (%m)
+	{   $s = make_method_call(%m);  }
+
+
+	while ($s =~ m/^([L0-9: \t]*\w+ Field .*)$re_const(.*)$/)
+	{   
+	    my $val = $const{"$classname:$2"};
+	    $val || die "$asm: undefined const string '[$2]'\n$s\n";
+	    $s = "$1$val$3\n";
+	}
+    }
+    
+    close(OUT);
+    close(IN);
+    rename($out, $asm);
+    unlink($classfile);
+}
+
+print "Fixing methods uconst ...\n";
+# Fixes external cached classes as well !
+foreach my $file (@FILES_AND_EXT)
+{  
+    printf("%-70s\r", $file);
+    file_fix_const($file);  
+}
+printf("%-70s\r", "");

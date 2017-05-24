@@ -80,7 +80,7 @@ sub find_new_field_name
 
 sub type_to_field_basename
 {
-    my ($type) = @_;
+    my ($type, $asm) = @_;
     if ($type =~ m/^[A-Z]$/) { return lc($type); }
     if ($type =~ m|^L([0-9a-zA-Z_\$/]+);$|)
     {
@@ -93,14 +93,14 @@ sub type_to_field_basename
     {
 	return type_to_field_basename($2);	# Nothing special for arrays for now ...
     }
-    die "Unknown type: '$type'";
+    die "$asm: unknown type: '$type'";
 }
 
 
 sub field_renamer
 {
-    my ($class, $field, $type, $count) = @_;
-    my $basename = type_to_field_basename($type);
+    my ($class, $field, $type, $count, $asm) = @_;
+    my $basename = type_to_field_basename($type, $asm);
     return find_new_field_name($class, $basename, $count);
 }
 

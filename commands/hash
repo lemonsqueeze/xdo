@@ -89,8 +89,6 @@ get_class_mapping(\@FILES, \&bleach_renamer, 0);
 
 ############################################################################
 
-my $re_class = qr|[0-9a-zA-Z_\$/]+|;
-my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
 
 sub bleached_class_hierarchy
 {
@@ -143,34 +141,38 @@ sub bleach_ids_and_tables
     
 
     # Erase method ids
-    if ($s =~ m|(^\.method.*) (\w+) : ([^ ]*)|)
+    if (my %m = parse_method($s, $asm))
     {  
-	my ($decl, $method, $type) = ($1, $2, $3);
-	check_method_type($asm, $classname, $method, $type);
-	$s = sprintf("%s %s : %s \n", $decl, "method", $type);
+	check_method_type($asm, $classname, $m{method}, $m{type});
+	# don't rename <init>(), <clinit>()
+	if ($m{method} =~ m/[<>]/)  {  next;  }
+	$m{method} = "method";
+	$s = make_method(%m);
     }
 
-    if ($s =~ m|(^[L0-9: \t]*invoke\w* \w*Method) ($re_class) (\w+) ([^ ]*)(.*)|)
+    if (my %m = parse_method_call($s, $asm))
     {
-	my ($call, $class, $method, $type, $tail) = ($1, $2, $3, $4, $5);
-	check_method_type($asm, $class, $method, $type);
-	if (!external_class($class))
+	check_method_type($asm, $m{class}, $m{method}, $m{type});
+	# don't rename <init>(), <clinit>()
+	if ($m{method} =~ m/[<>]/)  {  next;  }
+	if (!external_class($m{class}))
 	{
-	    $s = sprintf("%s %s %s %s%s\n", $call, $class, "method", $type, $tail);
+	    $m{method} = "method";
+	    $s = make_method_call(%m);
 	}
     }
 
     # Erase field ids
-    if ($s =~ m|(^\.field.*) (\w+) ($re_types) *$|)
+    if (my %f = parse_field($s, $asm))
     {  
-	my ($decl, $field, $type) = ($1, $2, $3);
-	$s = "$decl field $type \n";
+	$f{field} = "field";
+	$s = make_field(%f);
     }
 
-    if ($s =~ m|(^[L0-9: \t]*\w+ Field) ($re_class) (\w+) ($re_types) *$|)
+    if (my %f = parse_getfield($s, $asm))
     {
-	my ($call, $class, $field, $type) = ($1, $2, $3, $4);
-	$s = "$call $class field $type \n";
+	$f{field} = "field";	
+	$s = make_getfield(%f);
     }
     return $s;
 }

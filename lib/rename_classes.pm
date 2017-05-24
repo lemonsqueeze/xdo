@@ -1,10 +1,11 @@
 #!/usr/bin/perl
+#use strict;
+#use warnings;
 use File::Path qw(make_path);
 use File::Basename;
 
 use common;
-
-my $re_pathid      = qr|([0-9a-zA-Z_\$/]*)|;
+use parser;
 
 %class_mapping;
 %rev_class_mapping;
@@ -43,8 +44,10 @@ sub class_mapping_for_file
     open(IN, "< $asm") || die "couldn't open $asm\n";
     foreach my $s (<IN>)
     {
-	if (!($s =~ m|^\.class.* $re_pathid  *$|))  {  next;  }
-	my $class = $1;
+	my %c = parse_class($s, $asm);
+	if (!%c)  {  next;  }
+
+	my $class = $c{class};
 	my $dest  = $renamer->($class);
 	if ($dest ne $class)
 	{   $class_mapping{$class} = $dest;  }
@@ -121,6 +124,8 @@ sub class_for_name_warnings
     }    
 }
 
+
+my $re_class  = qr|[0-9a-zA-Z_\$/]+|;
 
 my @standard_types = ("Double", "Float", "Null", "Integer", "Object", "Short", "Long", "Character", 
 		      "Top", "Uninitialized", "UninitializedThis");
@@ -200,7 +205,7 @@ sub rename_types_in_file
 	if ($s =~ m/^ *\.end localvariabletable/)  { $localvariabletable_mode = 0;  }
 	if ($localvariabletable_mode)
 	{   
-	    if ($s =~ m/ L$re_pathid; / && $class_mapping{$1})
+	    if ($s =~ m/ L($re_class); / && $class_mapping{$1})
 	    {  	$s =   "$` L$class_mapping{$1}; $'";  }
 	    next; 
 	}
@@ -218,24 +223,29 @@ sub rename_types_in_file
 
 	    # Can't just do this, would loop if renamed matches pattern.
 	    # And can't use s|||g here either.
-	    # while ($s =~ s|($re_before_types$re_std_type*)L$re_pathid;|$1L$class_mapping{$2};|) { }
+	    # while ($s =~ s|($re_before_types$re_std_type*)L($re_class);|$1L$class_mapping{$2};|) { }
 	    
-	    # such a hack, but gets the job done =)
+	    # such a hack, but gets the job done
 	    my @parts = split(";", $s);
 	    my $n = @parts;
 	    for (my $i = 0; $i < $n - 1; $i++)
 	    {
-		if ($parts[$i] =~ m|($re_before_types$re_std_type*)L$re_pathid$| && $class_mapping{$2})
+		if ($parts[$i] =~ m|($re_before_types$re_std_type*)L($re_class)$| && $class_mapping{$2})
 		{   $parts[$i] = "$`$1L$class_mapping{$2}";  }
 	    }
 	    $s = join(";", @parts);
 	}
 	
 	# Statements with bare types
-	if ($s =~ m/(^\.class.*) $re_pathid  *$/ && $class_mapping{$2})
-	{   $s = "$1 $class_mapping{$2} $'";   $classname = $2; next;  }
+	my %c = parse_class($s, $asm);
+	if (%c && $class_mapping{ $c{class} })
+	{   
+	    $classname = $c{class}; 
+	    $c{class} = $class_mapping{$classname};
+	    $s = make_class(%c);  next;
+	}
 
-	if ($s =~ m/$re_bare_instr $re_pathid / && $class_mapping{$2})
+	if ($s =~ m/$re_bare_instr ($re_class) / && $class_mapping{$2})
 	{   $s = "$1 $class_mapping{$2} $'"; next;  }
 
 	
@@ -244,7 +254,7 @@ sub rename_types_in_file
 	{
 	    my ($head, $types) = ($1, $2);
 	    my $tail = "";
-	    @types = split(' ', $types);
+	    my @types = split(' ', $types);
 	    
 	    if ($innerclasses_mode)
 	    { 
@@ -259,7 +269,7 @@ sub rename_types_in_file
 	    {
 		if ($types[$i] eq "Uninitialized") { $i++; next; }
 		if ($standard_type{$types[$i]}) { next; }
-		if ($types[$i] =~ m|^$re_pathid$| && $class_mapping{$1})
+		if ($types[$i] =~ m|^($re_class)$| && $class_mapping{$1})
 		{   $types[$i] = $class_mapping{$1}; }
 	    }
 	    $types = join(" ", @types);

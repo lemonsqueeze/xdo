@@ -1,12 +1,6 @@
 #!/usr/bin/perl
 use common;
-
-my $re_class = qr|[0-9a-zA-Z_\$/]+|;
-my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
-my $re_uconst = qr|\[u[0-9]+\]|;
-
-
-################################################################################
+use parser;
 
 %methods;
 %methods_mapping;
@@ -23,6 +17,8 @@ sub method_name_in_use
     }
     return 0;
 }
+
+my $re_uconst = qr|\[u[0-9]+\]|;
 
 sub check_method_type
 {
@@ -74,6 +70,8 @@ sub add_method_mapping
 {
     my ($class, $method, $type, $renamer) = @_;
     
+    if ($method =~ m/[<>]/)     {  return;  }   # don't rename <init>(), <clinit>()
+    
     my $def_class = unbound_method_def_class($class, $method, $type);
     if (!$def_class)            {  return;  }	# can't rename bound methods
     
@@ -96,17 +94,16 @@ sub methods_mapping_for_file
     my $class;
     while (my $s = <IN>)
     {
-	if ($s =~ m|^\.class.* ($re_class) *$|)  { $class = $1; }
-
-	if ($s =~ m|(^\.method.*) (\w+) : ([^ ]*)|)
+	if (my %c = parse_class($s, $asm))  {  $class = $c{class};  }
+	
+	if (my %m = parse_method($s, $asm))
 	{  
-	    my ($method, $type) = ($2, $3);
-	    check_method_type($asm, $classname, $method, $type);
-	    $methods{"$class:$method:$type"} = 1;
+	    check_method_type($asm, $class, $m{method}, $m{type});
+	    $methods{"$class:$m{method}:$m{type}"} = 1;
 
-	    add_method_mapping($class, $method, $type, $renamer);
+	    add_method_mapping($class, $m{method}, $m{type}, $renamer);
 
-	    $methods_namespace{"$class:$method"} = 1;
+	    $methods_namespace{"$class:$m{method}"} = 1;
 	}
     }
 
@@ -118,19 +115,12 @@ sub get_methods_mapping
     my ($renamer) = @_;
     log_info("Looking up methods ...\n");
 
-    # process classes from most basic to most derived
-    my %classes_todo = %classes;    
-    while (%classes_todo)
-    {
-	foreach my $class (keys(%classes_todo))
+    foreach_class_most_basic_first(
+	sub 
 	{
-	    my $parent = $extends{$class};
-	    if ($classes_todo{$parent}) { next; }
-	    
+	    my ($class) = @_;
 	    methods_mapping_for_file($file_for_class{$class}, $renamer);
-	    delete $classes_todo{$class};
-	}
-    }    
+	});
 }
 
 
@@ -161,22 +151,20 @@ sub rename_methods_in_file
     my $classname;
     for (; my $s = <IN>; print OUT $s)
     {
-	if ($s =~ m|^\.class.* ($re_class) *$|) {  $classname = $1;  }
+	if (my %c = parse_class($s, $asm))  {  $classname = $c{class};  }
 
-	if ($s =~ m|(^\.method.*) (\w+) : ([^ ]*)|)
-	{  
-	    my ($decl, $method, $type) = ($1, $2, $3);
-	    check_method_type($asm, $classname, $method, $type);
-	    $method = lookup_renamed_method($classname, $method, $type);
-	    $s = sprintf("%s %s : %s \n", $decl, $method, $type);
+	if (my %m = parse_method($s, $asm))
+	{
+	    check_method_type($asm, $classname, $m{method}, $m{type});
+	    $m{method} = lookup_renamed_method($classname, $m{method}, $m{type});
+	    $s = make_method(%m);
 	}
 
-	if ($s =~ m|(^[L0-9: \t]*invoke\w* \w*Method) ($re_class) (\w+) ([^ ]*)(.*)|)
+	if (my %m = parse_method_call($s, $asm))
 	{
-	    my ($call, $class, $method, $type, $tail) = ($1, $2, $3, $4, $5);
-	    check_method_type($asm, $class, $method, $type);
-	    $method = lookup_renamed_method($class, $method, $type);
-	    $s = sprintf("%s %s %s %s%s\n", $call, $class, $method, $type, $tail);
+	    check_method_type($asm, $classname, $m{method}, $m{type});
+	    $m{method} = lookup_renamed_method($m{class}, $m{method}, $m{type});
+	    $s = make_method_call(%m);
 	}
     }
     

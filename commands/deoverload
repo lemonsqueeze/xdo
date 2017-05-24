@@ -73,7 +73,7 @@ sub find_new_method_name
 sub deoverload_renamer
 {
     my ($class, $method, $type, $def_class) = @_;
-    
+
     # implementing / overriding something ?  don't touch
     if ($def_class ne $class)  {  return $method;  }
     
