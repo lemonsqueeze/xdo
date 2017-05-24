@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-
+use common;
 
 my $re_class = qr|[0-9a-zA-Z_\$/]+|;
 my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
@@ -116,7 +116,7 @@ sub methods_mapping_for_file
 sub get_methods_mapping
 {
     my ($renamer) = @_;
-    print "Looking up methods ...\n";
+    log_info("Looking up methods ...\n");
 
     # process classes from most basic to most derived
     my %classes_todo = %classes;    
@@ -189,13 +189,13 @@ sub rename_methods_in_file
 sub rename_methods
 {
     my @FILES = @_;
-    print "Renaming methods ...\n";
+    log_info("Renaming methods ...\n");
     foreach my $file (@FILES)
     {  
-	printf("%-70s\r", $file);
+	log_info("%-70s\r", $file);
 	rename_methods_in_file($file);  
     }
-    printf("%-70s\r", "");
+    log_info("%-70s\r", "");
 }
 
 1;

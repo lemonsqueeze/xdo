@@ -2,6 +2,8 @@
 use File::Path qw(make_path);
 use File::Basename;
 
+use common;
+
 my $re_pathid      = qr|([0-9a-zA-Z_\$/]*)|;
 
 %class_mapping;
@@ -65,11 +67,11 @@ sub get_class_mapping
 {
     my ($files, $renamer, $checks) = @_;
     
-    print "Looking up classes ...\n";
+    log_info("Looking up classes ...\n");
     my $renames = 0;
     foreach my $file (grep(!/\$/, @$files)) {  $renames += class_mapping_for_file($file, $renamer, $checks);  }
     foreach my $file (grep(/\$/,  @$files)) {  $renames += class_mapping_for_file($file, $renamer, $checks);  }
-    if (!$renames) { print "No classes to rename.\n"; exit 0; }
+    if (!$renames) { log_info("No classes to rename.\n"); exit 0; }
 }
 
 
@@ -277,22 +279,22 @@ sub rename_types_in_file
 sub rename_classes
 {
     my @FILES = @_;
-    print "Moving classes ...\n";
+    log_info("Moving classes ...\n");
     my $renamed_classes = 0;
     foreach my $file (@FILES)
     {  
-	printf("%-70s\r", $file);    
+	log_info("%-70s\r", $file);
 	$renamed_classes += rename_types_in_file($file, 1);
     }
-    printf("%-70s\r", "");
-    printf("Renamed %i classes\n", $renamed_classes);
+    log_info("%-70s\r", "");
+    log_info("Renamed %i classes\n", $renamed_classes);
 
     if ($class_for_name)
     {
-	print "\nwarning: app uses Class.forName(), moving classes may break it.\n";
-	if (@warnings) {  print "following lines look like hardcoded renamed classes:\n"; }
+	log_warn("\nwarning: app uses Class.forName(), moving classes may break it.\n");
+	if (@warnings) {  log_warn("following lines look like hardcoded renamed classes:\n"); }
 	foreach my $s (@warnings)
-	{  print $s;  }
+	{  log_warn("%s", $s);  }
     }
 }
 

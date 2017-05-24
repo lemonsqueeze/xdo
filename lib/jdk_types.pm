@@ -1,8 +1,9 @@
 #!/usr/bin/perl
 # find jdk / outside classes
-
 use File::Basename;
 use Cwd;
+
+use common;
 
 my $confdir = "$ENV{HOME}/.xdo";
 my $indexdir = "$confdir/index";
@@ -53,8 +54,8 @@ sub init
     (-d $cachedir) || mkdir($cachedir) || die("couldn't create $cachedir");    
 
     my $jrelib = find_jrelib();
-    print "Found jre lib: $jrelib\n";
-    print "Building external classes cache ...\n";
+    log_info("Found jre lib: $jrelib\n");
+    log_info("Building external classes cache ...\n");
 
     my @jars = glob("$jrelib/*.jar");
     foreach my $jar (@jars)
@@ -80,7 +81,7 @@ sub dasm_ext_class
     (-f "$class.class") || die("jar extract failed");
 
     # Ok, have class file. Disassemble
-    print "DASM $class\n";
+    log_info("DASM $class\n");
     run_cmd("java_dasm '$class.class'");
     (-f "$class.j") || die("java_dasm failed");
 

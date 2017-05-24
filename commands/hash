@@ -66,6 +66,7 @@ if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
 
 ################################################################################
 
+$log_level = 1;    # Be quiet
 use class_info;
 get_class_info(@FILES);
 
@@ -206,8 +207,6 @@ sub hash_classes
 	if ($keep_sig) {  rename("${file}.new", "${file}.sig");  }
 	else	       {  unlink("${file}.new");  unlink("${class}.sig");  }
     }
-
-
 }
 
 

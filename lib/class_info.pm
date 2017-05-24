@@ -1,5 +1,6 @@
 #!/usr/bin/perl
 # class hierarchy
+use common;
 use jdk_types;
 
 my $re_class = qr|[0-9a-zA-Z_\$/]+|;
@@ -94,7 +95,7 @@ sub get_ext_classes_and_interfaces
 
 sub get_class_info
 {
-    print "Getting class info ...\n";    
+    log_info("Getting class info ...\n");
     foreach my $file (@_)
     {  
 	parse_class_type($file);  

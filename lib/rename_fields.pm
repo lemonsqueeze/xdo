@@ -1,4 +1,5 @@
 #!/usr/bin/perl
+use common;
 
 my $re_class = qr|[0-9a-zA-Z_\$/]+|;
 my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
@@ -135,13 +136,13 @@ sub rename_fields_for_file
 sub rename_fields
 {
     my @FILES = @_;
-    print "Renaming fields ...\n";
+    log_info("Renaming fields ...\n");
     foreach my $file (@FILES)
     {  
-	printf("%-70s\r", $file);
+	log_info("%-70s\r", $file);
 	rename_fields_for_file($file);  
     }
-    printf("%-70s\r", "");
+    log_info("%-70s\r", "");
 }
 
 1;
