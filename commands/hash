@@ -2,7 +2,7 @@
 # hash classes to help identify them across renames / version changes
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
-use Digest::SHA;
+use Digest::SHA qw(sha1_hex);
 
 $| = 1;
 
@@ -55,6 +55,7 @@ for (; $ARGV[0] =~ m/^-/; shift @ARGV)
     if ($ARGV[0] eq "--cleanup")   {  cleanup_sigs();  }
     die "unknown option: $ARGV[0]\n";
 }
+if ($ARGV[0])  {  usage();  }
 
 
 open(FILES, "find . -name '*.j' |");
@@ -106,24 +107,17 @@ sub bleached_class_hierarchy
 
 sub class_signature
 {
-    my ($class) = @_;
-    open(IN,  "< ${class}.j.new") || die "couldn't open ${class}.j.new";
-    open(OUT, "> ${class}.sig") || die "couldn't write ${class}.sig";
-
-    my @signature = (sprintf(".class_hierarchy %s\n", bleached_class_hierarchy($class)));
+    my ($class, $bytesig) = @_;
+    my @sig = (sprintf(".class_hierarchy %s\n", bleached_class_hierarchy($class)));
     
-    foreach my $s (<IN>)
+    foreach my $s (@$bytesig)
     {
 	if ($s =~ m|^\.| &&
 	    !($s =~ m/(?:^\.(end|version|const|super)|private)/))
-	{   push(@signature, $s);  }	
+	{   push(@sig, $s);  }	
     }
 
-    @signature = sort(@signature);
-    print OUT @signature;   
-
-    close(IN);
-    close(OUT);
+    return sort(@sig);
 }
 
 use rename_methods;
@@ -181,10 +175,7 @@ sub bleach_ids_and_tables
 
 sub digest
 {
-    my ($file) = @_;
-    my $sha = Digest::SHA->new(1);    
-    $sha->addfile($file);
-    return substr($sha->hexdigest, 0, 8);
+    return substr(sha1_hex(join("", @_)), 0, 8)
 }
 
 sub cleanup_sigs
@@ -199,13 +190,21 @@ sub hash_classes
     {  
 	my $class = "$file"; $class =~ s|\.j||;
 
-	rename_types_in_file($file, 0, \&bleach_ids_and_tables);
-	class_signature($class);
+	my @bytesig = rename_types_in_file($file, \&bleach_ids_and_tables);
+	my @sig = class_signature($class, \@bytesig);
 
-	printf("%s %s %s\n", digest("${class}.sig"), digest("${file}.new"), $class);
+	printf("%s %s %s\n", digest(@sig), digest(@bytesig), $class);
 
-	if ($keep_sig) {  rename("${file}.new", "${file}.sig");  }
-	else	       {  unlink("${file}.new");  unlink("${class}.sig");  }
+	if ($keep_sig) {
+	    open(OUT, "> $class.sig") || die "couldn't write to $class.sig\n";
+	    print OUT @sig;
+	    close(OUT);
+
+	    open(OUT, "> $file.sig") || die "couldn't write to $file.sig\n";
+	    print OUT @bytesig;
+	    close(OUT);
+	}
+
     }
 }
 

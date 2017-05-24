@@ -80,16 +80,18 @@ sub get_class_mapping
 
 sub move_class_file
 {
-    my ($asm, $class) = @_;
+    my ($file) = @_;
+    my $class = "$file"; $class =~ s|\.j||;	
     (-f "$class.j") || die "shouldn't happen";    
     
+    if (!$class_mapping{$class})  {  return;  }
     my $dest = $class_mapping{$class};    
     $dest .= ".j";
     
     my $dir = dirname($dest);
     make_path($dir);
 
-    rename($asm, $dest) || die("error: rename $asm $dest failed, aborting.\n");
+    rename($file, $dest) || die("error: rename '$file' '$dest' failed, aborting.\n");
 }
 
 
@@ -98,14 +100,14 @@ my @warnings;
 
 sub class_for_name_warnings
 {
-    my ($asm, $s, $classname, $prev, $l) = @_;
+    my ($asm, $s, $classname, $prev, $line) = @_;
     if ($s =~ m|^[L0-9: \t]*invokestatic Method java/lang/Class forName|)
     {   
 	$class_for_name = 1;    
 	if (($prev =~ m|^[L0-9: \t]*ldc '(.*)'|) && $class_mapping{$1})
 	{   
 	    my $file = ($class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
-	    push(@warnings, sprintf("%s:%i:  $prev", $file, $l - 1));
+	    push(@warnings, sprintf("%s:%i:  $prev", $file, $line - 1));
 	}
     }
     
@@ -114,7 +116,7 @@ sub class_for_name_warnings
 	my $c = $1;  $c =~ s|\.|/|g;
 	if ($class_mapping{$c}) {
 	    my $file = ($class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
-	    push(@warnings, sprintf("%s:%i:  $s", $file, $l));
+	    push(@warnings, sprintf("%s:%i:  $s", $file, $line));
 	}
     }    
 }
@@ -171,22 +173,23 @@ my $re_multi_bare = combine_regexps(
 
 my $re_std_type = qr/[A-KM-Z]/;
 my $re_before_types = qr/(?|^|[ ;()[])/;
+my $renamed_classes = 0;
 
 sub rename_types_in_file
 {
-    my ($asm, $rename_file, $extra_parser) = @_;
-    my $out = "${asm}.new";
-    my $classfile = "$asm"; $classfile =~ s|\.j|\.class|;
-
+    my ($asm, $extra_parser) = @_;
+    my @out;
+   
     open(IN, "< $asm") || die "couldn't open $asm\n";
-    open(OUT, "> $out") || die "couldn't write to $out\n";
+    my @lines = <IN>;
+    close(IN);
 
     my $innerclasses_mode = 0;
     my $localvariabletable_mode = 0;
     my $classname;
-    for (my $l = 1, my $prev = "";  
-	 my $s = <IN>;  
-	 $l++, $prev = $s, print OUT $s)
+    for (my $line = 1, my $prev = "";  
+	 my $s = $lines[$line - 1];
+	 $line++, $prev = $s, push(@out, $s))
     {
 	if ($extra_parser)  {  $s = $extra_parser->($s, $asm, $classname);  }
 
@@ -203,7 +206,7 @@ sub rename_types_in_file
 	}
 
 	# Class.forName() Warnings
-	class_for_name_warnings($asm, $s, $classname, $prev, $l);
+	class_for_name_warnings($asm, $s, $classname, $prev, $line);
 	
 	if ($s =~ m/$re_escaped_instr/)
 	{
@@ -263,16 +266,9 @@ sub rename_types_in_file
 	    $s = "$head $types $tail\n";
 	}
     }
-    close(IN);
-    close(OUT);
 
-    if ($rename_file)
-    {
-	rename($out, $asm);
-	unlink($classfile);	
-	if ($classname)  {  move_class_file($asm, $classname);  }	
-    }
-    return ($classname ne "");
+    if ($classname) {  $renamed_classes++;  }
+    return @out;
 }
 
 
@@ -280,11 +276,19 @@ sub rename_classes
 {
     my @FILES = @_;
     log_info("Moving classes ...\n");
-    my $renamed_classes = 0;
+
     foreach my $file (@FILES)
     {  
 	log_info("%-70s\r", $file);
-	$renamed_classes += rename_types_in_file($file, 1);
+	my @out = rename_types_in_file($file);
+
+	open(OUT, "> $file") || die "couldn't write to $file\n";
+	print OUT @out;
+	close(OUT);
+
+	my $classfile = "$file"; $classfile =~ s|\.j|.class|;	
+	unlink($classfile);
+	move_class_file($file);
     }
     log_info("%-70s\r", "");
     log_info("Renamed %i classes\n", $renamed_classes);
