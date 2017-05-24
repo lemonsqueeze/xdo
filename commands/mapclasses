@@ -1,0 +1,251 @@
+#!/usr/bin/perl
+# find mapping between similar classes in 2 different jars
+$| = 1;
+
+sub usage
+{    
+    print q{
+find mapping between similar classes in file1.jar and file2.jar
+
+usage: xdo mapclasses hashes1 hashes2
+
+where hashes1, hashes2 are output from xdo hash:
+    xdo jar -x file1.jar
+    xdo dasm
+    xdo hash > hashes1 
+    xdo done
+
+    xdo jar -x file2.jar
+    xdo dasm
+    xdo hash > hashes2 
+    xdo done
+
+    xdo mapclasses hashes1 hashes2
+
+};
+    exit 1;
+}
+
+for (; $ARGV[0] =~ m/^-/; shift @ARGV)
+{
+    if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+    die "unknown option: $ARGV[0]\n";
+}
+if (@ARGV != 2) {  usage();  }
+
+
+my %sighash;
+my %bytehash;
+my %sighash_hits;
+my %bytehash_hits;
+my %rsighash;
+my %rbytehash;
+
+sub parse_hashes
+{
+    my ($file) = @_;
+    open(IN, "< $file") || die "couldn't open '$file'";
+    my @lines = <IN>; chomp(@lines);
+    close(IN);
+
+    %sighash = ();
+    %bytehash = ();
+    %sighash_hits = ();
+    %bytehash_hits = ();
+    %rsighash = ();
+    %rbytehash = ();
+
+    foreach my $s (@lines)
+    {
+	if ($s !~ m/^(\w+) (\w+) ([^ ]+)/)  { die "$file: bad hashes line:\n$s\n"; }
+	my ($sighash, $bytehash, $class) = ($1, $2, $3);
+	$sighash{$class} = $sighash;
+	$bytehash{$class} = $bytehash;
+	$sighash_hits{$sighash}++;
+	$bytehash_hits{$bytehash}++;
+	$rsighash{$sighash} = $class;
+	$rbytehash{$bytehash} = $class;
+    }
+}
+
+
+my $hashfile1 = $ARGV[0];
+my $hashfile2 = $ARGV[1];
+
+parse_hashes($hashfile1);
+
+my %sighash1       = %sighash;
+my %bytehash1      = %bytehash;
+my %sighash_hits1  = %sighash_hits;
+my %bytehash_hits1 = %bytehash_hits;
+my %rsighash1      = %rsighash;
+my %rbytehash1     = %rbytehash;
+
+parse_hashes($hashfile2);
+
+my %sighash2       = %sighash;
+my %bytehash2      = %bytehash;
+my %sighash_hits2  = %sighash_hits;
+my %bytehash_hits2 = %bytehash_hits;
+my %rsighash2      = %rsighash;
+my %rbytehash2     = %rbytehash;
+
+
+##########################################################################################
+
+sub take_out_classes1
+{
+    foreach my $class1 (@_)
+    {
+	my $sighash1  = $sighash1{$class1};
+	my $bytehash1 = $bytehash1{$class1};
+	
+	$sighash_hits1{$sighash1}--;	
+	$bytehash_hits1{$bytehash1}--;
+    }
+}
+
+sub take_out_classes2
+{
+    foreach my $class2 (@_)
+    {
+	my $sighash2  = $sighash2{$class2};
+	my $bytehash2 = $bytehash2{$class2};
+	
+	$sighash_hits2{$sighash2}--;	
+	$bytehash_hits2{$bytehash2}--;
+    }
+}
+
+sub classes_with_hash
+{
+    my ($hashes, $hash) = @_;
+    my @classes;
+    foreach my $class (keys(%$hashes))
+    {
+	if ($hashes->{$class} eq $hash)  {  push(@classes, $class);  }
+    }
+    return sort(@classes);
+}
+
+
+##########################################################################################
+# Exact matches first
+
+# 1-to-1 class mapping
+my %mapping;
+
+sub add_unique_matches
+{
+    my ($hash_hits1, $rhash1,
+	$hash_hits2, $rhash2) = @_;
+    foreach my $h (keys(%$hash_hits1))
+    {
+	if ($hash_hits1->{$h} == 1 &&
+	    $hash_hits2->{$h} == 1)
+	{  
+	    my $class1 = $rhash1->{$h};
+	    my $class2 = $rhash2->{$h};
+	    if ($mapping{$class1} && $mapping{$class1} ne $class2) { die "shouldn't happen"; }
+	    $mapping{$class1} = $class2;
+	    take_out_classes1($class1);
+	    take_out_classes2($class2);
+	}
+    }
+}
+
+add_unique_matches(\%bytehash_hits1, \%rbytehash1,
+		   \%bytehash_hits2, \%rbytehash2);
+
+add_unique_matches(\%sighash_hits1, \%rsighash1,
+		   \%sighash_hits2, \%rsighash2);
+
+
+if (keys(%mapping)) {  print "Exact matches:\n";  }
+my $exact_matches = keys(%mapping);
+foreach my $class1 (sort(keys(%mapping)))
+{
+    my $class2    = $mapping{$class1};
+    printf("%-25s -> %s\n", $class1, $class2);
+}
+print "\n";
+
+
+##########################################################################################
+# Then bytehash collisions
+
+print "\nbytehash matches:\n";
+my $bytehash_collisions = 0;
+foreach my $h (keys(%bytehash_hits1))
+{
+    if (!$bytehash_hits1{$h})  {  next;  }    
+    if (!$bytehash_hits2{$h})  {  next;  }
+
+    my @classes1 = classes_with_hash(\%bytehash1, $h);
+    my @classes2 = classes_with_hash(\%bytehash2, $h);
+    printf("classes [ %s ]\n",   join(" ", @classes1));
+    printf("match   [ %s ]\n\n", join(" ", @classes2));
+    take_out_classes1(@classes1);
+    take_out_classes2(@classes2);
+    $bytehash_collisions += @classes1;
+}
+
+
+##########################################################################################
+# Last, sighash collisions
+
+
+print "\nsighash matches:\n";
+my $sighash_collisions = 0;
+foreach my $h (keys(%sighash_hits1))
+{
+    if (!$sighash_hits1{$h}) { next; }
+    if (!$sighash_hits2{$h}) { next; }
+
+    my @classes1 = classes_with_hash(\%sighash1, $h);
+    my @classes2 = classes_with_hash(\%sighash2, $h);
+    printf("classes [ %s ]\n",   join(" ", @classes1));
+    printf("match   [ %s ]\n\n", join(" ", @classes2));
+    take_out_classes1(@classes1);
+    take_out_classes2(@classes2);
+    $sighash_collisions += @classes1;
+}
+
+
+##########################################################################################
+# No matches
+
+print "\nno equivalent in set 2 ($hashfile2):\n";
+my $unmatched = 0;
+foreach my $h (keys(%sighash_hits1))
+{
+    if (!$sighash_hits1{$h}) { next; }
+    
+    if (!$sighash_hits2{$h})
+    {
+	my @classes1 = classes_with_hash(\%sighash1, $h);
+	printf("no matches for [ %s ]\n", join(" ", @classes1));
+	$unmatched += @classes1;
+	next;
+    }
+
+    die "shouldn't happen";
+}
+
+
+##########################################################################################
+# Summmary
+
+printf("\n--------------------------------------------------------------------------\n\n");
+
+my $total1 = keys(%sighash1);
+printf("Summary:\n");
+printf("  exact matches:       %i\n", $exact_matches);
+printf("  bytehash collisions: %i\n", $bytehash_collisions);
+printf("  sighash collisions:  %i\n", $sighash_collisions);
+printf("  unmatched:           %i\n", $unmatched);
+printf("  total:               %i\n", $total1);
+printf("\n");
+
+my $n = $exact_matches + $bytehash_collisions + $sighash_collisions + $unmatched;
+if ($n != $total1)  {  die "numbers don't add up, shouldn't happen !";  }
