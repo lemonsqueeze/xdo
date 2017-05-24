@@ -2,6 +2,51 @@
 # dump info on class hierachy and interfaces
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+use common;
+
+global_init();
+
+sub usage
+{    
+    print q{
+usage: xdo classinfo [-cp classpath]
+
+dump info on class hierachy and interfaces.
+following files are created:
+
+class_extends:
+  lists parent class of each class in the jar. format:
+  "class:parent_class"
+
+class_implements:
+  interfaces implemented by each class in the jar. format:
+  "class:interface [interface...]"
+
+interfaces:
+  lists all interfaces in the jar.
+
+class_hierarchy:
+  full class hierarchy for each class in the jar. format:
+  "class > parent [...] > java/lang/Object"
+
+class_hierarchy_fancy
+  same as class_hierarchy but formatted as a tree, also
+  showing interfaces implemented by each class.
+
+
+Options:
+  -classpath classpath    specify external jar dependencies
+  -cp        classpath
+
+};
+    exit 1;
+}
+
+for (; $ARGV[0] =~ m/^-/; shift @ARGV)
+{
+    if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+    die "unknown option: $ARGV[0]\n";
+}
 
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";

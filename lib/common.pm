@@ -1,4 +1,21 @@
 #!/usr/bin/perl
+use Cwd;
+
+$classpath = "";
+$initial_cwd = cwd();
+
+sub global_init
+{
+    $| = 1;
+    
+    if ($ARGV[0] eq "-cp" || $ARGV[0] eq "-classpath")
+    {
+	shift(@ARGV);  $classpath = pop(@ARGV);
+    }
+}
+
+
+###########################################################
 
 # 0: nothing
 # 1: warnings

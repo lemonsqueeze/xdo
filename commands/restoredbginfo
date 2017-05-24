@@ -2,11 +2,15 @@
 # recreate localvariabletable (debug methods arguments in jdb)
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
-$| = 1;
+use common;
+
+global_init();
 
 sub usage
 {    
     print q{
+usage: xdo restoredbginfo
+
 recreate localvariabletable for each method to allow debugging methods arguments in jdb,
 which is not available for obfuscated code normally:
 

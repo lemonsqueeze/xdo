@@ -2,7 +2,25 @@
 # replace string refs in methods signatures in disassembled files
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
-$| = 1;
+use common;
+
+global_init();
+
+sub usage
+{    
+    print q{
+replace string refs in methods signatures in disassembled files
+
+usage: xdo uconstfix [-cp classpath]
+
+Fix references to string constants in methods signatures to make
+xdo parser happy.
+
+};
+    exit 1;
+}
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
 
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";

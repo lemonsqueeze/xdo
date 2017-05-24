@@ -2,13 +2,17 @@
 # rename obfuscated methods based on defining class
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
-$| = 1;
+use common;
+
+global_init();
 
 sub usage
 {    
     print q{
 rename obfuscated methods based on defining class to remove any ambiguities
 and make it pretty clear what methods are being called and where they come from:
+
+usage: xdo renmethods [-cp classpath]
 
     Class ab
     {

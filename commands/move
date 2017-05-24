@@ -2,8 +2,9 @@
 # move or rename classes and fix all references to them in others
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+use common;
 
-$| = 1;
+global_init();
 
 sub usage
 {    
@@ -22,6 +23,7 @@ while $0 is the full class name. Renames may not result in clashes.
 
 Options:
   --auto-rename   automatically rename classes to avoid clashes
+  -cp classpath   jars for external dependencies
 
 Examples:
   move pkg/Foo  pkg/Bar

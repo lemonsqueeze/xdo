@@ -2,12 +2,16 @@
 # rename all fields based on field type
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
-$| = 1;
+use common;
+
+global_init();
 
 sub usage
 {    
     print q{
 rename all fields based on field type.
+
+usage: xdo renfields [-cp classpath]
 
 For example
 

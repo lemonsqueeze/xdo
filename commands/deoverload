@@ -2,12 +2,16 @@
 # deoverload (rename) methods
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
-$| = 1;
+use common;
+
+global_init();
 
 sub usage
 {    
     print q{
 deoverload methods:
+
+usage: xdo deoverload [-cp classpath]
 
     Class Foo
     {

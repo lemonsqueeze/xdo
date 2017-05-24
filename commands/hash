@@ -3,8 +3,9 @@
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 use Digest::SHA qw(sha1_hex);
+use common;
 
-$| = 1;
+global_init();
 
 sub usage
 {    
@@ -37,6 +38,7 @@ it uses are renamed.
 Options:
   --keep-sig       keep .sig files around (normally deleted)                   
   --cleanup        remove .sig files from previous run
+  -cp classpath    jars for external dependencies
 
 };
     exit 1;

@@ -23,8 +23,7 @@ my %class_to_jar;
 
 sub index_jar
 {
-    my ($jar) = @_;
-
+    my ($jar) = @_;    
     my $index = "$indexdir/" . basename($jar);
     (-f $index) || run_cmd("jar tf '$jar' > '$index'");
     open(IN, "< $index") || die("couldn't open '$index'");
@@ -57,11 +56,20 @@ sub init
     log_info("Found jre lib: $jrelib\n");
     log_info("Building external classes cache ...\n");
 
-    my @jars = glob("$jrelib/*.jar");
-    foreach my $jar (@jars)
-    {
-	index_jar($jar);
+    my @jars;
+    # boot classes first
+    push(@jars, glob("$jrelib/*.jar"));         # jre libs
+    push(@jars, glob("$jrelib/../lib/*.jar"));  # try jdk libs too
+
+    # then regular ones
+    foreach my $p (split(":", $classpath))
+    {  
+	# Absolute / relative path ?
+	if ($p =~ m|^/.*\.jar$|)     {  push(@jars, $p);  }
+	if ($p =~ m|^[^/].*\.jar$|)  {  push(@jars, "$initial_cwd/$p");  }
     }
+
+    foreach my $jar (@jars)  {  index_jar($jar);  }
 
     $init = 1;
 }
@@ -76,7 +84,8 @@ sub dasm_ext_class
     chdir($cachedir) || die("cache dir not found");
 
     my $jar = $class_to_jar{$class};
-    (-f $jar) || die("class '$class' not found in any jars");
+    ($jar)    || die("class '$class' not found in any jars");
+    (-f $jar) || die("couldn't open '$jar' !");
     run_cmd("jar xf '$jar' '$class.class' ");
     (-f "$class.class") || die("jar extract failed");
 
