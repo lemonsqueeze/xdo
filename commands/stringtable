@@ -1,0 +1,41 @@
+#!/usr/bin/perl
+# dump string table stored in resource file
+#
+use strict;
+use warnings;
+use Fcntl 'SEEK_SET', 'SEEK_END';
+
+sub usage
+{
+    print q{
+usage: xdo stringtable <resource_file>
+
+dump string table stored in <resource_file>, one entry per line.
+format is "id:string"
+
+};
+    exit 1;
+}
+
+if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+
+
+my $file = $ARGV[0];
+open(IN, "<:raw", $file) || die "couldn't open '$file'";
+
+my $filelen = sysseek(IN, 0, SEEK_END);
+sysseek(IN, 0, SEEK_SET);
+
+my $r = read(IN, my $bytes, $filelen);
+($r == $filelen) || die "fixme";
+
+
+for (my $i = 0; $i < $filelen; )
+{
+    my ($id, $len) = unpack('i>S>', substr($bytes, $i, 6));
+    $i += 6;
+    my $str = substr($bytes, $i, $len);
+    $i += $len;
+
+    printf("%i:%s\n", $id, $str);
+}
