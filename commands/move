@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 # move or rename classes and fix all references to them in others
+use strict;
+#use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 use common;
@@ -24,6 +26,13 @@ while $0 is the full class name. Renames may not result in clashes.
 Options:
   --auto-rename   automatically rename classes to avoid clashes
   -cp classpath   jars for external dependencies
+
+Bugs:
+- You should run xdo constfix first otherwise types in const strings
+  won't be renamed. 
+- If command fails in the middle of a move, working dir will be left
+  in an inconsistent state. Backup jar/ directory first so you can
+  restore it later if move fails.
 
 Examples:
   move pkg/Foo  pkg/Bar
@@ -71,14 +80,14 @@ my $valid_pattern = "([0-9a-zA-Z_\$/*]*)";
 
 # Make regexp from command-line pattern
 my $re_match = $ARGV[0];
-if ($re_match eq "" || !($re_match =~ m/^$valid_pattern$/)) { die "Invalid pattern: '$ARGV[0]'\n"; }
+if (!$re_match || !($re_match =~ m/^$valid_pattern$/)) { die "Invalid pattern: '$ARGV[0]'\n"; }
 $re_match =~ s|\*\*|<starstar>|g;
 $re_match =~ s|\*|$classid|g;
 $re_match =~ s|<starstar>|$pathid|g;
 $re_match = qr|($re_match)|;
 
 my $re_dest = $ARGV[1];
-if ($re_dest eq "" || !($re_dest =~ m/^$valid_pattern$/)) { die "Invalid destination: '$ARGV[1]'\n"; }
+if (!$re_dest || !($re_dest =~ m/^$valid_pattern$/)) { die "Invalid destination: '$ARGV[1]'\n"; }
 # and quote for future eval
 $re_dest = '"' . $re_dest . '"';
 # and bump up ref numbers ('$0' becomes '$1', '$1' becomes '$2' etc)
@@ -108,8 +117,8 @@ sub autorename_renamer
     if ($class =~ m|^([^\$]*)\$(.*)$|)
     {
 	my ($outer, $inner) = ($1, $2);
-	if ($class_mapping{$outer})
-	{   return "$class_mapping{$outer}\$$inner";   }
+	if (class_mapping($outer))
+	{   return class_mapping($outer) . "\$$inner";   }
     }
 
     my $newclass = $class;
@@ -118,7 +127,7 @@ sub autorename_renamer
     if ($newclass ne $class)
     {
 	my $orig = $newclass;
-	for (my $x = "a";  (-f "$newclass.j") || $rev_class_mapping{$newclass};  $x++)
+	for (my $x = "a";  (-f "$newclass.j") || rev_class_mapping($newclass);  $x++)
 	{    $newclass = "$orig$x";    }
 	if ($newclass ne $orig)  {  print "auto_rename: $class -> $newclass\n";  }
     }

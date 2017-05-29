@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 # deoverload (rename) methods
+use strict;
+#use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 use common;
@@ -29,11 +31,15 @@ becomes (if methods 'a' are free to rename):
         public void a2(String s)
     }
 
+Bugs:
+- If command fails while processing classes, working dir will be left
+  in an inconsistent state. Backup jar/ directory first so you can
+  restore it later if it fails.
 };
     exit 1;
 }
 
-if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+if (@ARGV && $ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
 
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";

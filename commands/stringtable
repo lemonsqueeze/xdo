@@ -2,7 +2,7 @@
 # dump string table stored in resource file
 #
 use strict;
-use warnings;
+#use warnings;
 use Fcntl 'SEEK_SET', 'SEEK_END';
 
 sub usage

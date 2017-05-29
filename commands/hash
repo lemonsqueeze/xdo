@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 # hash classes to help identify them across renames / version changes
+use strict;
+#use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 use Digest::SHA qw(sha1_hex);
@@ -45,19 +47,19 @@ Options:
 }
 
 
-if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+if (@ARGV && $ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
 (-d "jar") || die "No jar directory, open a jar first.\n";
 chdir "jar" || die "Couldn't cd jar/\n";
 
 
 my $keep_sig = 0;
-for (; $ARGV[0] =~ m/^-/; shift @ARGV)
+for (; @ARGV && $ARGV[0] =~ m/^-/; shift @ARGV)
 {
     if ($ARGV[0] eq "--keep-sig")  {  $keep_sig = 1; next;  }
     if ($ARGV[0] eq "--cleanup")   {  cleanup_sigs();  }
     die "unknown option: $ARGV[0]\n";
 }
-if ($ARGV[0])  {  usage();  }
+if (@ARGV && $ARGV[0])  {  usage();  }
 
 
 open(FILES, "find . -name '*.j' |");
@@ -69,7 +71,7 @@ if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
 
 ################################################################################
 
-$log_level = 1;    # Be quiet
+$main::log_level = 1;    # Be quiet
 use class_info;
 get_class_info(@FILES);
 
@@ -94,7 +96,7 @@ sub bleached_class_hierarchy
 {
     my ($class) = @_;
     my $s = "";
-    for (; $class ne ""; $class = $extends{$class})
+    for (; $class; $class = parent_class($class))
     {  
 	if (external_class($class))
 	{   $s .= "$class ";  last;  }
@@ -145,7 +147,7 @@ sub bleach_ids_and_tables
     {  
 	check_method_type($asm, $classname, $m{method}, $m{type});
 	# don't rename <init>(), <clinit>()
-	if ($m{method} =~ m/[<>]/)  {  next;  }
+	if ($m{method} =~ m/[<>]/)  {  return $s;  }
 	$m{method} = "method";
 	$s = make_method(%m);
     }
@@ -154,7 +156,7 @@ sub bleach_ids_and_tables
     {
 	check_method_type($asm, $m{class}, $m{method}, $m{type});
 	# don't rename <init>(), <clinit>()
-	if ($m{method} =~ m/[<>]/)  {  next;  }
+	if ($m{method} =~ m/[<>]/)  {  return $s;  }
 	if (!external_class($m{class}))
 	{
 	    $m{method} = "method";

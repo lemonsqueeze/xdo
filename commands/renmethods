@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 # rename obfuscated methods based on defining class
+use strict;
+#use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 use common;
@@ -42,7 +44,10 @@ are renamed as:
         public void ac_a(int i)
     }
 
-
+Bugs:
+- If command fails while processing classes, working dir will be left
+  in an inconsistent state. Backup jar/ directory first so you can
+  restore it later if it fails.
 };
     exit 1;
 };

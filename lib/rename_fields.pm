@@ -1,4 +1,6 @@
 #!/usr/bin/perl
+use strict;
+#use warnings;
 use common;
 use parser;
 
@@ -11,7 +13,7 @@ sub new_field_defined
     my ($class, $field) = @_;
     foreach my $c (class_and_parents($class)) 
     {  
-	if ($new_fields{"$c:$field"} ne "") { return 1; }  
+	if ($new_fields{"$c:$field"}) { return 1; }  
     }
     return 0;
 }
@@ -54,13 +56,11 @@ sub get_fields_mapping
 {
     my ($renamer) = @_;
 
-    foreach_class_most_basic_first(
-	sub 
-	{
-	    my ($class) = @_;
-	    if (!external_class($class))
-	    {   get_fields_mapping_for_file("$class.j", $renamer);   }
-	});
+    foreach my $class (classes_most_basic_first())
+    {
+	if (!external_class($class))
+	{   get_fields_mapping_for_file("$class.j", $renamer);   }
+    }
 }
 
 

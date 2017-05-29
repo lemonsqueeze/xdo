@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-#use strict;
+use strict;
 #use warnings;
 use File::Path qw(make_path);
 use File::Basename;
@@ -7,8 +7,8 @@ use File::Basename;
 use common;
 use parser;
 
-%class_mapping;
-%rev_class_mapping;
+my %class_mapping;
+my %rev_class_mapping;
 
 # Sanity checks	
 sub rename_checks
@@ -28,12 +28,24 @@ sub rename_checks
 	die "error: clash moving '$class' to '$dest' :\n" .
 	    "'$dest' already exists.\n";  
     }
-    if ($rev_class_mapping{$dest} ne "")
+    if ($rev_class_mapping{$dest})
     { 
 	die "error: '$class' \n" . 
 	    "  and  '$rev_class_mapping{$dest}' \n" . 
 	    "  would both end up in '$dest'\n";  
     }
+}
+
+sub class_mapping
+{
+    my ($class) = @_;
+    return $class_mapping{$class};
+}
+
+sub rev_class_mapping
+{
+    my ($class) = @_;
+    return $rev_class_mapping{$class};
 }
 
 sub class_mapping_for_file
@@ -109,7 +121,7 @@ sub class_for_name_warnings
 	$class_for_name = 1;    
 	if (($prev =~ m|^[L0-9: \t]*ldc '(.*)'|) && $class_mapping{$1})
 	{   
-	    my $file = ($class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
+	    my $file = ($classname && $class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
 	    push(@warnings, sprintf("%s:%i:  $prev", $file, $line - 1));
 	}
     }
@@ -118,7 +130,7 @@ sub class_for_name_warnings
     {   
 	my $c = $1;  $c =~ s|\.|/|g;
 	if ($class_mapping{$c}) {
-	    my $file = ($class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
+	    my $file = ($classname && $class_mapping{$classname} ? "$class_mapping{$classname}.j" : $asm);
 	    push(@warnings, sprintf("%s:%i:  $s", $file, $line));
 	}
     }    
@@ -126,6 +138,7 @@ sub class_for_name_warnings
 
 
 my $re_class  = qr|[0-9a-zA-Z_\$/]+|;
+my $re_const  = qr|\[([a-z]+[0-9]+)\]|;
 
 my @standard_types = ("Double", "Float", "Null", "Integer", "Object", "Short", "Long", "Character", 
 		      "Top", "Uninitialized", "UninitializedThis");
@@ -207,6 +220,8 @@ sub rename_types_in_file
 	{   
 	    if ($s =~ m/ L($re_class); / && $class_mapping{$1})
 	    {  	$s =   "$` L$class_mapping{$1}; $'";  }
+	    if ($s =~ m/$re_const/)
+	    {   die "$asm: const found, fixme !\n$s\n";  }
 	    next; 
 	}
 
@@ -254,12 +269,12 @@ sub rename_types_in_file
 	{
 	    my ($head, $types) = ($1, $2);
 	    my $tail = "";
-	    my @types = split(' ', $types);
+	    my @types = ($types ? split(' ', $types) : () );
 	    
 	    if ($innerclasses_mode)
 	    { 
-		$head = "   "; 
-		my @all = split(' ', $s); 
+		$head = "   ";
+		my @all = split(' ', $s);
 		@types = ($all[0], $all[1]); # just need to translate first two
 		splice(@all, 0, 2);          # remainng ones
 		$tail = join(" ", @all);
@@ -269,6 +284,8 @@ sub rename_types_in_file
 	    {
 		if ($types[$i] eq "Uninitialized") { $i++; next; }
 		if ($standard_type{$types[$i]}) { next; }
+		if ($types[$i] =~ m|$re_const| && $types[$i] ne "[0]")
+		{   die "$asm: const found, fixme !\n$s\n";  }
 		if ($types[$i] =~ m|^($re_class)$| && $class_mapping{$1})
 		{   $types[$i] = $class_mapping{$1}; }
 	    }
@@ -306,7 +323,7 @@ sub rename_classes
     if ($class_for_name)
     {
 	log_warn("\nwarning: app uses Class.forName(), moving classes may break it.\n");
-	if (@warnings) {  log_warn("following lines look like hardcoded renamed classes:\n"); }
+	if (@warnings) {  log_warn("possibly hardcoded renamed classes:\n"); }
 	foreach my $s (@warnings)
 	{  log_warn("%s", $s);  }
     }

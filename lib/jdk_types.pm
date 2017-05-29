@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 # find jdk / outside classes
+use strict;
+#use warnings;
 use File::Basename;
 use Cwd;
 
@@ -62,11 +64,11 @@ sub init
     push(@jars, glob("$jrelib/../lib/*.jar"));  # try jdk libs too
 
     # then regular ones
-    foreach my $p (split(":", $classpath))
+    foreach my $p (split(":", $main::classpath))
     {  
 	# Absolute / relative path ?
 	if ($p =~ m|^/.*\.jar$|)     {  push(@jars, $p);  }
-	if ($p =~ m|^[^/].*\.jar$|)  {  push(@jars, "$initial_cwd/$p");  }
+	if ($p =~ m|^[^/].*\.jar$|)  {  push(@jars, "$main::initial_cwd/$p");  }
     }
 
     foreach my $jar (@jars)  {  index_jar($jar);  }

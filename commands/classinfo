@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 # dump info on class hierachy and interfaces
+use strict;
+#use warnings;
 use FindBin;
 use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
 use common;
@@ -42,7 +44,7 @@ Options:
     exit 1;
 }
 
-for (; $ARGV[0] =~ m/^-/; shift @ARGV)
+for (; @ARGV && $ARGV[0] =~ m/^-/; shift @ARGV)
 {
     if ($ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
     die "unknown option: $ARGV[0]\n";
@@ -65,30 +67,44 @@ get_class_info(@FILES);
 
 print "Writing class_extends ...\n";
 open(OUT, "> ../class_extends");
-foreach my $classname (sort(keys(%classes)))
-{  print OUT "$classname:$extends{$classname}\n";  }
+foreach my $class (classes())
+{  
+    if (!external_class($class))
+    {   printf OUT ("%s:%s\n", $class, parent_class($class));   }
+}
 close(OUT);
 
 print "Writing class_implements ...\n";
 open(OUT, "> ../class_implements");
-foreach my $classname (sort(keys(%classes)))
-{  print OUT "$classname:$implements{$classname}\n";  }
+foreach my $class (classes())
+{  
+    if (!external_class($class))
+    {
+	my $interfaces = join(", ", implemented_interfaces($class));
+	printf OUT ("%s:%s\n", $class, $interfaces);  
+    }
+}
 close(OUT);
 
 print "Writing interfaces ...\n";
 open(OUT, "> ../interfaces");
-foreach my $interface (sort(keys(%interfaces)))
-{  print OUT "$interface\n";  }
+foreach my $interface (interfaces())
+{  
+    if (!external_class($interface))
+    {   print OUT "$interface\n";   }
+}
 close(OUT);
 
 print "Writing class_hierarchy ...\n";
 open(OUT,  "> ../class_hierarchy");
-foreach my $class (sort(keys(%classes)))
+foreach my $class (classes())
 {
+    if (external_class($class))  {  next;  }
+    
     my $s = "";
-    if ($extended{$class}) { next; }
-    $s .= "$class";  $class = $extends{$class};
-    for (; $class ne ""; $class = $extends{$class})
+    if (extended($class)) { next; }
+    $s .= "$class";  $class = parent_class($class);
+    for (; $class; $class = parent_class($class))
     {  $s .= " > $class";  }
     
     print OUT "$s\n";
@@ -97,15 +113,17 @@ close(OUT);
 
 print "Writing class_hierarchy_fancy ...\n";
 open(OUT, "> ../class_hierarchy_fancy");
-foreach my $class (sort(keys(%classes)))
+foreach my $class (classes())
 {
-    if ($extended{$class}) { next; }
+    if (external_class($class))  {  next;  }
+    if (extended($class))        {  next;  }    
+    
     my $indent = 0;
-    for (; $class ne ""; $class = $extends{$class}, $indent += 2)
+    for (; $class; $class = parent_class($class), $indent += 2)
     {		
-	my $indented_class = sprintf("%*s%s", $indent, "", $class, $interfaces);
-	my $interfaces = $implements{$class};
-	if ($interfaces ne "") { $interfaces = "[ $interfaces ]"; }
+	my $indented_class = sprintf("%*s%s", $indent, "", $class);
+	my $interfaces = join(",", implemented_interfaces($class));
+	if ($interfaces)  {  $interfaces = "[ $interfaces ]";  }
 	printf OUT ("%-30s %s\n", $indented_class, $interfaces);
     }
     print OUT "\n";

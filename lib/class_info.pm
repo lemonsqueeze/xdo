@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 # class hierarchy
+use strict;
+#use warnings;
 use common;
 use jdk_types;
 use parser;
@@ -7,16 +9,15 @@ use parser;
 my $re_class = qr|[0-9a-zA-Z_\$/]+|;
 
 # project files + external classes
-@FILES_AND_EXT;
-%file_for_class;
+my %class_file;
 
-%classes;
-%ext_classes;   # External classes (jdk ...)
-%interfaces;
+my %classes;
+my %ext_classes;   # External classes (jdk ...)
+my %interfaces;
 
-%extends;
-%extended;
-%implements;
+my %parent_class;
+my %extended;
+my %implements;
 
 sub file_class_info
 {
@@ -24,7 +25,7 @@ sub file_class_info
     open(IN, "< $asm") || die "couldn't open $asm";
 
     my $classname;
-    my $super;
+    my $super = "";
     my @ifaces;
     foreach my $s (<IN>)
     {
@@ -46,24 +47,54 @@ sub file_class_info
 
     #print "$classname > $super\n";    
     $classes{$classname} = 1;
-    $file_for_class{$classname} = $asm;
-    $extends{$classname} = $super;
+    $class_file{$classname} = $asm;
+    $parent_class{$classname} = $super;
     $extended{$super} = 1;
     $implements{$classname} = join(", ", @ifaces);
+}
+
+sub classes
+{
+    return sort(keys(%classes));
+}
+
+sub interfaces
+{
+    return sort(keys(%interfaces));
+}
+
+sub parent_class
+{
+    my ($class) = @_;
+    return $parent_class{$class};
+}
+
+sub extended
+{
+    my ($class) = @_;
+    return $extended{$class};
+}
+
+sub class_file
+{
+    my ($class) = @_;
+    return $class_file{$class};
 }
 
 sub implemented_interfaces
 {
     my ($class) = @_;    
 
-    return split(", ", $implements{$class});
+    my $interfaces = $implements{$class};
+    if ($interfaces)  {  return split(", ", $interfaces);  }
+    return ();
 }
 
 sub class_and_parents
 {
     my ($class) = @_;
     my @classes;
-    for (; $class ne ""; $class = $extends{$class})
+    for (; $class; $class = $parent_class{$class})
     {
 	push(@classes, $class);  
     }
@@ -77,60 +108,67 @@ sub external_class
     return (!$classes{$class} || $ext_classes{$class});
 }
 
+sub interface_or_jlo
+{  
+    my ($class) = @_;  
+    return ($interfaces{$class} || $class eq "java/lang/Object");
+}
 
-# call $func($class) for each class, from most basic to most derived
-sub foreach_class_most_basic_first
-{
-    my ($func) = @_;
-    my %classes_left = %classes;
-
-    sub interface_or_jlo
-    {  
-	my ($class) = @_;  
-	return ($interfaces{$class} || $class eq "java/lang/Object");
-    }
-
-    sub foreach_class_if
+# classes ordered from most basic to most derived
+sub classes_most_basic_first
+{    
+    my @list;
+    my %todo = %classes;
+    
+    my $foreach_class_if = sub
     {
-	my ($test, $func) = @_;
-	for (my $cont = 1; %classes_left && $cont; )
+	my ($test) = @_;
+	for (my $cont = 1; %todo && $cont; )
 	{
 	    $cont = 0;
-	    foreach my $class (keys(%classes_left))
+	    foreach my $class (keys(%todo))
 	    {
-		my $parent = $extends{$class};
-		if ($classes_left{$parent})    {  next;  }
-		if ($test && !$test->($class)) {  next;  }
+		if ($todo{parent_class($class)})  {  next;  }
+		if ($test && !$test->($class))    {  next;  }
 		
-		$func->($class);
+	        push(@list, $class);
 		$cont = 1;
-		delete $classes_left{$class};
+		delete $todo{$class};
 	    }
 	}
-    }
+    };
 
     # interfaces first
-    foreach_class_if(\&interface_or_jlo, $func);
-    foreach_class_if(0, $func);
-    !keys(%classes_left) || die "classes left !";
+    $foreach_class_if->(\&interface_or_jlo);
+    $foreach_class_if->(0);
+    !keys(%todo) || die "classes left !";
+    return @list;
 }
 
 sub get_ext_classes_and_interfaces
 {
     my ($class) = @_;
-    if ($classes{$class} || $class eq "") { return; }    
+    if (!$class || $classes{$class}) { return; }    
 
     #print "external class: $class\n";
     my $file = get_ext_class_file($class);
     file_class_info($file);
-    push(@FILES_AND_EXT, $file);
     $ext_classes{$class} = 1;
     
     foreach my $i (implemented_interfaces($class))
     {
 	get_ext_classes_and_interfaces($i);
     }
-    get_ext_classes_and_interfaces($extends{$class});
+    get_ext_classes_and_interfaces($parent_class{$class});
+}
+
+# all class files, including external classes
+sub all_class_files
+{
+    my @files;
+    foreach my $class (classes())
+    {   push (@files, class_file($class));  }
+    return @files;
 }
 
 sub get_class_info
@@ -141,11 +179,10 @@ sub get_class_info
 	file_class_info($file);
     }
 
-    @FILES_AND_EXT = @_;
     # Lookup external (jdk) parent classes also
     foreach my $class (keys(%classes))
     {
-	get_ext_classes_and_interfaces($extends{$class});
+	get_ext_classes_and_interfaces($parent_class{$class});
 	foreach my $i (implemented_interfaces($class))
 	{
 	    get_ext_classes_and_interfaces($i);

@@ -1,10 +1,12 @@
 #!/usr/bin/perl
+use strict;
+#use warnings;
 use common;
 use parser;
 
-%methods;
-%methods_mapping;
-%methods_namespace;	# all methods defined until now, old and new.
+my %methods;
+my %methods_mapping;
+my %methods_namespace;	# all methods defined until now, old and new.
 
 # For deoverload, must be kept here however.
 # is method name already used in new methods namespace ?
@@ -18,13 +20,13 @@ sub method_name_in_use
     return 0;
 }
 
-my $re_uconst = qr|\[u[0-9]+\]|;
+my $re_const = qr|\[([a-z]+[0-9]+)\]|;
 
 sub check_method_type
 {
     my ($file, $class, $method, $type) = @_;
-    if ($type =~ m|^$re_uconst|) {  die "$file: $class.$method() call: uconst type found\n" .
-					"run xdo uconstfix first\n"; }
+    if ($type =~ m|^$re_const|) {  die "$file: $class.$method() call: const found\n" .
+				       "run xdo constfix first\n"; }
     if (!($type =~ m|^\(|)) {  die "$file: $class.$method() call: unhandled method type '$type'"; }
 }
 
@@ -115,12 +117,10 @@ sub get_methods_mapping
     my ($renamer) = @_;
     log_info("Looking up methods ...\n");
 
-    foreach_class_most_basic_first(
-	sub 
-	{
-	    my ($class) = @_;
-	    methods_mapping_for_file($file_for_class{$class}, $renamer);
-	});
+    foreach my $class (classes_most_basic_first())
+    {
+	methods_mapping_for_file(class_file($class), $renamer);
+    }
 }
 
 

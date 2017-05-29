@@ -1,14 +1,17 @@
 #!/usr/bin/perl
+use strict;
+#use warnings;
 use Cwd;
 
-$classpath = "";
-$initial_cwd = cwd();
+our $classpath = "";
+our $initial_cwd = cwd();
 
 sub global_init
 {
     $| = 1;
     
-    if ($ARGV[0] eq "-cp" || $ARGV[0] eq "-classpath")
+    if (@ARGV &&
+	($ARGV[0] eq "-cp" || $ARGV[0] eq "-classpath"))
     {
 	shift(@ARGV);  $classpath = pop(@ARGV);
     }
@@ -21,7 +24,7 @@ sub global_init
 # 1: warnings
 # 2: info
 # 3: debug
-$log_level = 2;
+our $log_level = 2;
 
 sub log_warn
 {

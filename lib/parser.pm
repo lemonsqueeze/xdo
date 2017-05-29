@@ -1,10 +1,10 @@
 #!/usr/bin/perl
 use strict;
-use warnings;
+#use warnings;
 
 my $re_class = qr|[0-9a-zA-Z_\$/]+|;
 my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
-my $re_const = qr|\[([a-z0-9]+)\]|;
+my $re_const = qr|\[([a-z]+[0-9]+)\]|;
 
 sub parse_class
 {
@@ -57,7 +57,7 @@ sub parse_method_call
 	if ($s =~ m|^[L0-9: \t]*invokedynamic|)  {  return;  }
 	# TODO: array class call:
 	#       invokevirtual Method [Ljava/lang/StackTraceElement; clone ()Ljava/lang/Object;
-	if ($s =~ m|^[L0-9: \t]*invoke\w* \w*Method \[|)  {  return;  }
+	if ($s =~ m|^[L0-9: \t]*invoke\w* \w*Method \[L$re_class;|)  {  return;  }
 	if ($s =~ m|$re_const|)  {  die "$asm: const found, run xdo constfix first:\n$s\n";  }
 	die("parser error: $asm:\n$s\n");  
     }
