@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# hash classes to help identify them across renames / version changes
+# hash classes to help identify them across version changes
 use strict;
 #use warnings;
 use FindBin;
@@ -16,28 +16,28 @@ hash classes to help identify them across renames / version changes
 
 usage: xdo hash [options]
 
-Prints hashes for each class. There are two hashes:
+prints hashes for each class. there are two hashes:
 The first hash, "sighash", is based only on the class signature
 (public methods and fields basically) while the second, "bytehash",
 is based on the class' bytecode signature.
 
 sighash is interesting because it's unaffected by implementation
-changes. Only when a class api changes (say a new public method
-is added or removed) does sighash change. It doesn't contain
+changes. only when a class api changes (say a new public method
+is added or removed) does sighash change. it doesn't contain
 much information about the class however, so for small classes
 with very few methods there will be lots of collisions.
 
 bytehash is the opposite: it contains information about every
 bytecode instruction so if the same bytehash is found in two
 different codebases it almost certainly points to the same
-class (especially if the class is big). The slightest
+class (especially if the class is big). the slightest
 implementation change changes it however.
 
-Both hashes are identifier proof: a class' hashes will remain
+both hashes are identifier proof: a class' hashes will remain
 the same even if it's renamed, its fields, methods or the types
 it uses are renamed.
 
-Options:
+options:
   --keep-sig       keep .sig files around (normally deleted)                   
   --cleanup        remove .sig files from previous run
   -cp classpath    jars for external dependencies

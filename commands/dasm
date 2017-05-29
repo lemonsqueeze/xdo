@@ -38,7 +38,7 @@ SRCJ     = $(CLASSES:.class=.j)
 all: $(SRCJ)
 
 %.j: %.class
-	@echo DASM '$<'
+	@echo dasm '$<'
 	@java_dasm '$<'
 EOF
     jobs=1

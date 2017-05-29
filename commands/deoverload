@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# deoverload (rename) methods
+# deoverload methods
 use strict;
 #use warnings;
 use FindBin;
@@ -31,9 +31,9 @@ becomes (if methods 'a' are free to rename):
         public void a2(String s)
     }
 
-Bugs:
-- If command fails while processing classes, working dir will be left
-  in an inconsistent state. Backup jar/ directory first so you can
+bugs:
+- if command fails while processing classes, working dir will be left
+  in an inconsistent state. backup jar/ directory first so you can
   restore it later if it fails.
 };
     exit 1;

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# dump info on class hierachy and interfaces
+# class hierachy and interfaces
 use strict;
 #use warnings;
 use FindBin;
@@ -13,7 +13,7 @@ sub usage
     print q{
 usage: xdo classinfo [-cp classpath]
 
-dump info on class hierachy and interfaces.
+dump class hierachy and interfaces data.
 following files are created:
 
 class_extends:
@@ -28,15 +28,16 @@ interfaces:
   lists all interfaces in the jar.
 
 class_hierarchy:
-  full class hierarchy for each class in the jar. format:
-  "class > parent [...] > java/lang/Object"
-
-class_hierarchy_fancy
-  same as class_hierarchy but formatted as a tree, also
+  full class hierarchy for each class in the jar, as tree,
   showing interfaces implemented by each class.
 
+class_hierarchy_flat:
+  full class hierarchy for each class in the jar, one line
+  per class. format:
+  "class > parent > [...] > java/lang/Object"
 
-Options:
+
+options:
   -classpath classpath    specify external jar dependencies
   -cp        classpath
 
@@ -96,23 +97,7 @@ foreach my $interface (interfaces())
 close(OUT);
 
 print "Writing class_hierarchy ...\n";
-open(OUT,  "> ../class_hierarchy");
-foreach my $class (classes())
-{
-    if (external_class($class))  {  next;  }
-    
-    my $s = "";
-    if (extended($class)) { next; }
-    $s .= "$class";  $class = parent_class($class);
-    for (; $class; $class = parent_class($class))
-    {  $s .= " > $class";  }
-    
-    print OUT "$s\n";
-}
-close(OUT);
-
-print "Writing class_hierarchy_fancy ...\n";
-open(OUT, "> ../class_hierarchy_fancy");
+open(OUT, "> ../class_hierarchy");
 foreach my $class (classes())
 {
     if (external_class($class))  {  next;  }
@@ -128,6 +113,23 @@ foreach my $class (classes())
     }
     print OUT "\n";
 }
+close(OUT);
+
+print "Writing class_hierarchy_flat ...\n";
+open(OUT,  "> ../class_hierarchy_flat");
+foreach my $class (classes())
+{
+    if (external_class($class))  {  next;  }
+    
+    my $s = "";
+    if (extended($class)) { next; }
+    $s .= "$class";  $class = parent_class($class);
+    for (; $class; $class = parent_class($class))
+    {  $s .= " > $class";  }
+    
+    print OUT "$s\n";
+}
+close(OUT);
 
 
 # todo interfaces_implemented

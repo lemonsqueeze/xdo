@@ -38,7 +38,7 @@ CLASSES  = $(SRCJ:.j=.class)
 all: $(CLASSES)
 
 %.class: %.j
-	@echo ASM '$<'
+	@echo asm '$<'
 	@java_asm '$<'
 EOF
     jobs=1

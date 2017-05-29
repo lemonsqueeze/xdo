@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# fix class / string refs in disassembled files
+# fix const strings refs in disassembled files
 use strict;
 #use warnings;
 use FindBin;
@@ -13,7 +13,7 @@ sub usage
     print q{
 usage: xdo constfix [-cp classpath]
 
-Replace constant strings / class references in disassembled files
+replace constant strings / class references in disassembled files
 to make xdo parser's life easier.
 
 };

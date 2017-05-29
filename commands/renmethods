@@ -44,9 +44,9 @@ are renamed as:
         public void ac_a(int i)
     }
 
-Bugs:
-- If command fails while processing classes, working dir will be left
-  in an inconsistent state. Backup jar/ directory first so you can
+bugs:
+- if command fails while processing classes, working dir will be left
+  in an inconsistent state. backup jar/ directory first so you can
   restore it later if it fails.
 };
     exit 1;

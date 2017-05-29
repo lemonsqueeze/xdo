@@ -10,7 +10,7 @@ die() { echo "xdo: $@"; exit 1; }
 usage()
 {
     cat <<-'EOF'
-	xdo - simple java deobfuscator and class manipulator based on Krakatau.
+	xdo - simple java deobfuscator based on Krakatau.
 
 	usage: xdo <command> [options]
 

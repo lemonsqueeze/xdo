@@ -92,7 +92,7 @@ sub dasm_ext_class
     (-f "$class.class") || die("jar extract failed");
 
     # Ok, have class file. Disassemble
-    log_info("DASM $class\n");
+    log_info("dasm $class\n");
     run_cmd("java_dasm '$class.class'");
     (-f "$class.j") || die("java_dasm failed");
 

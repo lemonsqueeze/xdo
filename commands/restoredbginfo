@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# recreate localvariabletable (debug methods arguments in jdb)
+# debug methods arguments in jdb
 use strict;
 #use warnings;
 use FindBin;
@@ -15,8 +15,8 @@ sub usage
     print q{
 usage: xdo restoredbginfo
 
-recreate localvariabletable for each method to allow debugging methods arguments in jdb,
-which is not available for obfuscated code normally:
+recreate localvariabletables so methods arguments can be debugged in jdb.
+normally not possible for obfuscated code:
 
   $ jdb -classpath file.jar
   > stop in main.class.main(java.lang.String[])
@@ -27,14 +27,14 @@ which is not available for obfuscated code normally:
   > locals
   Local variable information not available.  Compile with -g to generate variable information
 
-let's restore debug info:
+after restoring debug info:
 
   $ xdo jar -x file.jar
   $ xdo dasm
   $ xdo restoredbginfo
   $ xdo jar -c file_dbg.jar
 
-now 'locals' can tell us about methods arguments:
+now 'locals' can tell methods arguments:
 
   $ jdb -classpath file_dbg.jar
   > stop in main.class.main(java.lang.String[])

@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# move or rename classes and fix all references to them in others
+# rename / repackage classes
 use strict;
 #use warnings;
 use FindBin;
@@ -11,38 +11,43 @@ global_init();
 sub usage
 {    
 print q{
-Usage: xdo move [options] <src> <dest>
+usage: xdo move [options] <src> <dest>
 
-Move/rename java classes matching <src> and fix all references
-to renamed classes.
+rename / repackage classes matching <src> and fix all references
+to them in others.
 
 <src> may contain '*' and '**' wildcards:
   '*'  matches any single class or directory
   '**' matches any class at any depth further down
 
-Corresponding matches may be referred to as $1, $2 etc in <dest>,
+corresponding matches may be referred to as $1, $2 etc in <dest>,
 while $0 is the full class name. Renames may not result in clashes.
 
-Options:
+options:
   --auto-rename   automatically rename classes to avoid clashes
   -cp classpath   jars for external dependencies
 
-Bugs:
-- You should run xdo constfix first otherwise types in const strings
+bugs:
+- if app uses Class.forName() and hardcoded class names to load
+  classes, repackaging classes may break it. move will warn if it
+  finds Class.forName() calls and list lines that need fixing for
+  obvious cases.
+- you should run xdo constfix first otherwise types in const strings
   won't be renamed. 
-- If command fails in the middle of a move, working dir will be left
-  in an inconsistent state. Backup jar/ directory first so you can
+- if command fails in the middle of a move, working dir will be left
+  in an inconsistent state. backup jar/ directory first so you can
   restore it later if move fails.
 
-Examples:
+examples:
   move pkg/Foo  pkg/Bar
       rename one class
 
   move '*'  'pkg/$1'
       move all classes in default package to pkg/
 
-  move '**/*'  'pkg/$2'
-      flatten out all other classes to pkg/
+  move --auto-rename '**/*'  'pkg/$2'
+      collapse all other classes into pkg/, renaming classes
+      in case of clashes.
 
   move 'google/**'  'thirdparty/google/$1'
       repackage google classes under thirdparty/
