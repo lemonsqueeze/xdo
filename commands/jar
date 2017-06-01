@@ -25,6 +25,10 @@ extract()
     
     echo "Extracting $1 ..."
     unzip -q -d jar "$1"
+    if [ $? -ge 2 ]; then 
+	exit 2
+    fi
+    exit 0
 }
 
 
@@ -45,7 +49,6 @@ fi
 }
 
 
-set -e
 cmd="$1"; shift
 [ "$cmd" = "-x" ] && extract "$@"
 [ "$cmd" = "-c" ] && pack "$@"

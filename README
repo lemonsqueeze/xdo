@@ -1,6 +1,7 @@
 xdo - simple java deobfuscator based on Krakatau.
 
 usage: xdo <command> [options]
+       xdo deobf input.jar output.jar
 
 available commands:
     asm                   assemble classes
@@ -8,12 +9,13 @@ available commands:
     clearcache            clear external classes cache
     constfix              fix const strings refs in disassembled files
     dasm                  disassemble classes
+    deobf                 deobfuscate jar
     deoverload            deoverload methods
     done                  wipe out working directory
     hash                  hash classes to help identify them across version changes
     jar                   open / create jar files
-    mapclasses            find mapping between similar classes in 2 different jars
-    move                  move or rename classes and fix all references to them in others
+    mapclasses            find mapping between similar classes in different jars
+    move                  rename / repackage classes
     nodefpkg              move all classes out of the default package
     renfields             rename all fields based on field type
     renmethods            rename obfuscated methods based on defining class

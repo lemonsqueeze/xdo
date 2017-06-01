@@ -13,6 +13,7 @@ usage()
 	xdo - simple java deobfuscator based on Krakatau.
 
 	usage: xdo <command> [options]
+	       xdo deobf input.jar output.jar
 
 	available commands:
 	EOF

@@ -1,0 +1,79 @@
+#!/bin/bash
+# deobfuscate jar
+
+usage()
+{
+    cat <<-'EOF'
+	deobfuscate jar
+
+	usage: xdo deobf [options] input.jar output.jar
+        
+	shorthand for:
+	  xdo jar -x input.jar
+	  xdo dasm
+	  xdo constfix
+	  xdo renmethods
+	  xdo deoverload
+	  xdo renfields
+	  xdo restoredbginfo
+	  xdo jar -c output.jar
+	  xdo done
+
+	options:
+	  --nodefpkg   move classes out of default package first
+	  --collapse   move all classes into package 'pkg' first, and ensure
+	               unique names
+	  --strip      no .j files in output.jar
+	EOF
+    exit 1
+}
+
+[ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] && usage
+
+nodefpkg=""
+collapse=""
+strip=""
+while [ "${1%%-*}" = "" ]; do
+    if   [ "$1" = "--nodefpkg" ]; then
+	nodefpkg="1"; shift
+    elif [ "$1" = "--collapse" ]; then
+	collapse="1"; shift
+    elif [ "$1" = "--strip" ]; then
+	strip="1"; shift
+    else
+	usage
+    fi
+done
+
+
+[ "$1" = "" ] || ! [ -f "$1" ] || [ "${1%.jar}" = "$1" ] && usage
+in="$1";  shift
+[ "$1" = "" ] ||                  [ "${1%.jar}" = "$1" ] && usage
+out="$1"; shift
+
+
+###################################################################
+set -e
+
+"$cmddir"/jar -x "$in"
+"$cmddir"/dasm
+
+if [ -n "$collapse" ]; then
+    "$cmddir"/move  '*'  'pkg/$1'
+    "$cmddir"/move  --auto-rename  '**/*'  'pkg/$2'
+elif [ -n "$nodefpkg" ]; then
+    "$cmddir"/nodefpkg
+fi
+
+"$cmddir"/constfix
+"$cmddir"/renmethods
+"$cmddir"/deoverload
+"$cmddir"/renfields
+"$cmddir"/restoredbginfo
+
+if [ -n "$strip" ]; then
+    "$cmddir"/strip
+fi
+
+"$cmddir"/jar -c "$out"
+"$cmddir"/done
