@@ -6,7 +6,7 @@ use common;
 use jdk_types;
 use parser;
 
-my $re_class = qr|[0-9a-zA-Z_\$/]+|;
+my $re_class = qr|[-_0-9a-zA-Z\$/]+|;
 
 # project files + external classes
 my %class_file;
@@ -58,9 +58,21 @@ sub classes
     return sort(keys(%classes));
 }
 
+sub is_class
+{
+    my ($class) = @_;
+    return $classes{$class};
+}
+
 sub interfaces
 {
     return sort(keys(%interfaces));
+}
+
+sub is_interface
+{
+    my ($class) = @_;
+    return $interfaces{$class};
 }
 
 sub parent_class

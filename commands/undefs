@@ -1,0 +1,58 @@
+#!/usr/bin/perl
+# find undef classes refs
+use strict;
+#use warnings;
+use FindBin;
+use lib "$FindBin::Bin/../lib";	 # Find modules in ../lib
+use common;
+
+global_init();
+
+sub usage
+{    
+print q{
+
+
+};
+    exit 1;
+}
+
+
+if (@ARGV && $ARGV[0] =~ m/^(-h|-help|--help)$/)  {  usage();  }
+(-d "jar") || die "No jar directory, open a jar first.\n";
+chdir "jar" || die "Couldn't cd jar/\n";
+
+
+open(FILES, "find . -name '*.j' |");
+my @FILES = <FILES>;  chomp(@FILES);
+foreach (@FILES) {  s|^./||;  }
+close(FILES);
+if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
+
+
+################################################################################
+
+#$main::log_level = 1;    # Be quiet
+use class_info;
+get_class_info(@FILES);
+
+##########################################################################
+
+sub find_undefs_handler
+{
+    my ($class, $type, $s, $file) = @_;
+    if (!external_class($class) && !is_class($class))
+    {
+	print "$file:$class\n";
+    }
+}
+
+
+sub find_undefs
+{
+    foreach my $file (@FILES)
+    {
+	my $class = "$file"; $class =~ s|\.j||;
+	forall_types_in_file($file, \&find_undefs_handler);
+    }
+}

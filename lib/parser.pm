@@ -2,8 +2,8 @@
 use strict;
 #use warnings;
 
-my $re_class = qr|[0-9a-zA-Z_\$/]+|;
-my $re_types = qr|[A-Za-z0-9_;/[\$]+|;
+my $re_class = qr|[-_0-9a-zA-Z\$/]+|;
+my $re_types = qr|[-_A-Za-z0-9;/[\$]+|;
 my $re_const = qr|\[([a-z]+[0-9]+)\]|;
 
 sub parse_class
