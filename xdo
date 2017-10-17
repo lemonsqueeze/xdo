@@ -28,9 +28,12 @@ usage()
 	basic workflow:
 	    xdo jar -x file.jar
 	    xdo dasm
-	    xdo stuff, or hack .j files in jar/ directory ...
+	    xdo stuff             (or hack .j files in jar directory)
 	    xdo jar -c out.jar
 	    xdo done
+
+	for help on a given command try:
+	    xdo <command> -h
 	EOF
     exit 1
 }
