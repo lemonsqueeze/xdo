@@ -12,4 +12,4 @@ usage()
 
 [ "$1" = "help" ] || [ "$1" = "--help" ] || [ "$1" = "-h" ] && usage
 
-"$cmddir/move" '*' 'pkg/$1'
+"$cmddir/move" "$@" '*' 'pkg/$1'

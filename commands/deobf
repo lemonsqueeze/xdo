@@ -20,10 +20,12 @@ usage()
 	  xdo done
 
 	options:
-	  --nodefpkg   move classes out of default package first
-	  --collapse   move all classes into package 'pkg' first, and ensure
-	               unique names
-	  --strip      no .j files in output.jar
+	  --nodefpkg    move classes out of default package first
+	  --collapse    move all classes into package 'pkg' first, and ensure
+	                unique names
+	  --strip       no .j files in output.jar
+	  -cp classpath paths to system/external .jars project depends on
+	                (java jre's rt.jar added automatically)
 	EOF
     exit 1
 }
@@ -33,6 +35,7 @@ usage()
 nodefpkg=""
 collapse=""
 strip=""
+classpath=""
 while [ "${1%%-*}" = "" ]; do
     if   [ "$1" = "--nodefpkg" ]; then
 	nodefpkg="1"; shift
@@ -40,6 +43,8 @@ while [ "${1%%-*}" = "" ]; do
 	collapse="1"; shift
     elif [ "$1" = "--strip" ]; then
 	strip="1"; shift
+    elif [ "$1" = "-cp" ]; then
+	shift;  [ -z "$1" ] && usage;  classpath="-cp $1";  shift
     else
 	usage
     fi
@@ -59,16 +64,16 @@ set -e
 "$cmddir"/dasm
 
 if [ -n "$collapse" ]; then
-    "$cmddir"/move  '*'  'pkg/$1'
-    "$cmddir"/move  --auto-rename  '**/*'  'pkg/$2'
+    "$cmddir"/move  $classpath  '*'  'pkg/$1'
+    "$cmddir"/move  $classpath  --auto-rename  '**/*'  'pkg/$2'
 elif [ -n "$nodefpkg" ]; then
-    "$cmddir"/nodefpkg
+    "$cmddir"/nodefpkg $classpath
 fi
 
-"$cmddir"/constfix
-"$cmddir"/renmethods
-"$cmddir"/deoverload
-"$cmddir"/renfields
+"$cmddir"/constfix   $classpath
+"$cmddir"/renmethods $classpath
+"$cmddir"/deoverload $classpath
+"$cmddir"/renfields  $classpath
 "$cmddir"/restoredbginfo
 
 if [ -n "$strip" ]; then
