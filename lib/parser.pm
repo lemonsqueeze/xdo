@@ -28,7 +28,7 @@ my $re_method = qr/[-_a-zA-Z0-9<>\$]+/;
 sub parse_method
 {
     my ($s, $asm) = @_;
-    if ($s =~ m|^(\.method.*) ($re_method) : ([^ ]*)|)
+    if ($s =~ m|^(\.method.*) '?($re_method)'? : ([^ ]*)|)
     {   return ("decl" => $1, "method" => $2, "type" => $3);  }
     if ($s =~ m|^\.method|) {  
 	if ($s =~ m|$re_const|)  {  die "$asm: const found, run xdo constfix first:\n$s\n";  }
@@ -50,7 +50,7 @@ sub make_method
 sub parse_method_call
 {
     my ($s, $asm) = @_;
-    if ($s =~ m|^([L0-9: \t]*invoke\w* \w*Method) ($re_class) ($re_method) ([^ ]*) (.*)$|)
+    if ($s =~ m|^([L0-9: \t]*invoke\w* \w*Method) ($re_class) '?($re_method)'? ([^ ]*) (.*)$|)
     {   return ("call" => $1, "class" => $2, "method" => $3, "type" => $4, "tail" => $5);  }
     if ($s =~ m|^[L0-9: \t]*invoke\w* |) { 
 	# TODO: invokedynamic
