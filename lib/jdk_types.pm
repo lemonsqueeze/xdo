@@ -25,7 +25,8 @@ my %class_to_jar;
 
 sub index_jar
 {
-    my ($jar) = @_;    
+    my ($jar) = @_;
+    log_info "indexing $jar\n";
     my $index = "$indexdir/" . basename($jar);
     (-f $index) || run_cmd("jar tf '$jar' > '$index'");
     open(IN, "< $index") || die("couldn't open '$index'");
