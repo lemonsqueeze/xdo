@@ -41,4 +41,22 @@ sub log_debug
     if ($log_level >= 3)  {  printf(@_);  }    
 }
 
+
+###########################################################
+# Exception handling
+# http://c2.com/cgi/wiki?ExceptionHandlingInPerl
+
+sub try(&) { eval {$_[0]->()} }
+sub throw($) { die $_[0] }
+sub catch(&) { $_[0]->($@) if $@ }
+
+# Example:
+#    try {
+#        throw "stuff";
+#    };
+#    catch {
+#        print $@;
+#    };
+
+
 1;

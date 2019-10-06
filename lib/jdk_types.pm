@@ -23,6 +23,15 @@ sub run_cmd
 # map class to jar file containing it
 my %class_to_jar;
 
+# For external classes, return filename of jar containing it (just basename)
+sub jar_for_class
+{
+    my ($class) = @_;
+    init();
+    my $jar = $class_to_jar{$class};
+    return ($jar ? basename($jar) : $jar);
+}
+
 sub index_jar
 {
     my ($jar) = @_;
@@ -51,6 +60,8 @@ sub find_jrelib
 my $init = 0;
 sub init
 {
+    $init && return;
+    
     (-d $confdir) || mkdir($confdir) || die("couldn't create $confdir");
     (-d $indexdir) || mkdir($indexdir) || die("couldn't create $indexdir");
     (-d $cachedir) || mkdir($cachedir) || die("couldn't create $cachedir");    
@@ -80,14 +91,17 @@ sub init
 
 sub dasm_ext_class
 {
-    if (!$init) { init(); }
+    init();
 
     my ($class) = @_;
     my $cwd = cwd();
     chdir($cachedir) || die("cache dir not found");
 
     my $jar = $class_to_jar{$class};
-    ($jar)    || die("class '$class' not found in any jars");
+    if (!$jar) {
+	log_warn("class     %15s $class not found in any jars\n", "");
+	throw "dasm_ext_class error";
+    }
     (-f $jar) || die("couldn't open '$jar' !");
     run_cmd("jar xf '$jar' '$class.class' ");
     (-f "$class.class") || die("jar extract failed");

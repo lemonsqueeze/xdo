@@ -159,19 +159,35 @@ sub classes_most_basic_first
 
 sub get_ext_classes_and_interfaces
 {
-    my ($class) = @_;
-    if (!$class || $classes{$class}) { return; }    
+    my ($class, $used_by) = @_;
+    if (!$class || $classes{$class}) { return; }    # reached root or already have
 
-    #print "external class: $class\n";
-    my $file = get_ext_class_file($class);
-    file_class_info($file);
-    $ext_classes{$class} = 1;
-    
-    foreach my $i (implemented_interfaces($class))
-    {
-	get_ext_classes_and_interfaces($i);
+    if ($main::log_level >= 3) {   # show processing of external classes
+	log_debug("ext class: %-70s   used by %s\n",
+		  sprintf("%15s:%s", jar_for_class($class), $class),
+		  sprintf("%15s:%s", jar_for_class($used_by), $used_by));
     }
-    get_ext_classes_and_interfaces($parent_class{$class});
+    
+    my $file;
+    
+    try {
+	$file = get_ext_class_file($class);
+
+	file_class_info($file);
+	$ext_classes{$class} = 1;
+	
+	foreach my $i (implemented_interfaces($class))
+	{
+	    get_ext_classes_and_interfaces($i, $class);
+	}
+	get_ext_classes_and_interfaces($parent_class{$class}, $class);	
+    };
+    catch {   # failed ? show hierarchy of class users
+	my ($e) = @_;
+	if ($e !~ m/dasm_ext_class error/)  { die "ooops: $e";  }
+	log_warn("  used by %15s:%s\n", jar_for_class($used_by), $used_by);
+	throw $e;
+    };
 }
 
 # all class files, including external classes
@@ -187,17 +203,17 @@ sub get_class_info
 {
     log_info("Getting class info ...\n");
     foreach my $file (@_)
-    {  
+    {
 	file_class_info($file);
     }
 
     # Lookup external (jdk) parent classes also
     foreach my $class (keys(%classes))
     {
-	get_ext_classes_and_interfaces($parent_class{$class});
+	get_ext_classes_and_interfaces($parent_class{$class}, $class);
 	foreach my $i (implemented_interfaces($class))
 	{
-	    get_ext_classes_and_interfaces($i);
+	    get_ext_classes_and_interfaces($i, $class);
 	}
 
     }
