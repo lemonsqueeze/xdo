@@ -44,6 +44,43 @@ sub make_method
 }
 
 ###################################################################################
+# parse .enclosing method statement:
+#   .enclosing method classname methodname type
+
+# matches complete and incomplete declarations
+sub parse_enclosing_method_any
+{
+    my ($s, $asm) = @_;
+    if ($s !~ m|^\.enclosing method|) {  return;  }
+    
+    if ($s =~ m|^\.enclosing method ($re_class) '?($re_method)'? ([^ ]+)|)
+    {   return ("class" => $1, "method" => $2, "type" => $3);  }
+
+    # incomplete declaration ...
+    if ($s =~ m|^\.enclosing method ($re_class) \[0\]|)
+    {   return ("class" => $1);  }
+    
+    die("parser error: $asm:\n$s\n");
+}
+
+# matches only complete declarations
+sub parse_enclosing_method
+{
+    my ($s, $asm) = @_;
+    my %m = parse_enclosing_method_any($s, $asm);
+    if (!$m{method}) {  return;  }
+    return %m;
+}
+
+sub make_enclosing_method
+{
+    my %m = @_;
+    if ($m{method})
+    {  return ".enclosing method $m{class} $m{method} $m{type} \n";  }
+    return    ".enclosing method $m{class} [0] \n";
+}
+
+###################################################################################
 
 # Note: beware invokeinterface's trailing number                v
 #       invokeinterface InterfaceMethod java/util/List size ()I 1

@@ -160,6 +160,13 @@ sub rename_methods_in_file
 	    $s = make_method(%m);
 	}
 
+	if (my %m = parse_enclosing_method($s, $asm))
+	{
+	    check_method_type($asm, $classname, $m{method}, $m{type});
+	    $m{method} = lookup_renamed_method($m{class}, $m{method}, $m{type});
+	    $s = make_enclosing_method(%m);
+	}
+
 	if (my %m = parse_method_call($s, $asm))
 	{
 	    check_method_type($asm, $classname, $m{method}, $m{type});

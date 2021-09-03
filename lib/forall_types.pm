@@ -116,12 +116,18 @@ sub forall_types_in_file
 	}
 	
 	# Statements with bare types
-	my %c = parse_class($s, $asm);
-	if (%c)
+	
+	if (my %c = parse_class($s, $asm))
 	{   
 	    $classname = $c{class}; 
 	    $c{class} = $handler->($classname, "class", $s, $asm);
 	    $s = make_class(%c);  next;
+	}
+
+	if (my %m = parse_enclosing_method_any($s, $asm))
+	{
+	    $m{class} = $handler->($m{class}, "enclosing method", $s, $asm);
+	    $s = make_enclosing_method(%m);  next;
 	}
 
 	if ($s =~ m/$re_bare_instr ($re_class) /)
