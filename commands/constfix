@@ -30,84 +30,61 @@ my @FILES = <FILES>;  chomp(@FILES);
 close(FILES);
 if (!@FILES) { die "No disassembled classes found. Run dasm first.\n"; }
 
-# Methods we want to rename
-my $re_meth_match = qr|[0-9a-zA-Z_<>]+|;		# any
-
-################################################################################
-
-use class_info;
-get_class_info(@FILES);
 
 ################################################################################
 
 my $re_const = qr|\[([a-z]+[0-9]+)\]|;
-my %const;
-
-sub parse_consts
-{
-    my ($asm) = @_;
-
-    open(IN, "< $asm") || die "couldn't open $asm";
-
-    my $classname;
-    while (my $s = <IN>)
-    {
-	if (my %c = parse_class($s, $asm))  {  $classname = $c{class};  }
-
-	if ($s =~ m|^\.const $re_const = Utf8 (.*) $|   ||
-	    $s =~ m|^\.const $re_const = Class (.*) $|  ||
-	    $s =~ m|^\.const $re_const = (.*) $|)
-	{  
-	    my ($name, $val) = ($1, $2);
-	    $const{"$classname:$name"} = $val;
-	    #print "$classname:$name:$val\n";
-	}
-    }
-
-    close(IN);    
-}
-
-print "Looking up consts ...\n";
-foreach my $file (all_class_files())
-{  
-    parse_consts($file);
-}
-
-################################################################################
-
 
 sub file_fix_const
 {
-    my ($asm) = @_;    
+    my ($asm) = @_;
     my $out = "${asm}.new";
     my $classfile = "$asm"; $classfile =~ s|\.j|\.class|;
     
     open(IN, "< $asm") || die "couldn't open $asm";
     open(OUT, "> $out") || die "couldn't write to $out";
+    my @tab = <IN>;
+    close(IN);
 
-    my $classname;
-    for (; my $s = <IN>; print OUT $s)
-    {
-	if (my %c = parse_class($s, $asm))  {  $classname = $c{class};  }
-	
-	# skip .const and ldc* instr, don't want to replace there
+    # first get consts definitions
+    # only handle named references for now
+    my %const;
+    foreach my $s (@tab) {
+	if ($s =~ m|^\.const $re_const = Utf8 (.*) $|   ||
+	    $s =~ m|^\.const $re_const = Class (.*) $|  ||
+	    $s =~ m|^\.const $re_const = (.*) $|)
+	{
+	    my ($name, $val) = ($1, $2);
+	    $const{"$name"} = $val;	# named reference
+	    #print "$name:$val\n";
+	}
+    }
+
+    # and replace ...
+    foreach my $s (@tab) {
+	# skip .const and ldc* instr, don't want to replace there (would have to deal with quotes)
 	if ($s =~ m/^\.const/ ||
 	    $s =~ m/^[L0-9: \t]* ldc/)
-	{   next;   }
+	{   print OUT $s;  next;   }
 
-	while ($s =~ m/^(.*)$re_const(.*)$/)
+	while ($s =~ m/^(.* )$re_const( .*)$/)
 	{
-	    my $val = $const{"$classname:$2"};
+	    my $val = $const{$2};
 	    $val || die "$asm: undefined const string '[$2]'\n$s\n";
 	    $s = "$1$val$3\n";
 	}
+	
+	print OUT $s;
     }
     
     close(OUT);
-    close(IN);
     rename($out, $asm);
     unlink($classfile);
 }
+
+
+use class_info;
+get_class_info(@FILES);
 
 print "Fixing methods consts ...\n";
 # Fixes external cached classes as well !
