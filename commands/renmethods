@@ -80,16 +80,21 @@ sub class_prefix
     return $class;
 }
 
-# Methods we want to rename
-my $re_meth_match = qr|[0-9a-zA-Z_]{1,3}|;	# 3 letters max
+my $re_three_char = qr|[0-9a-zA-Z_]{1,3}|;	# 3 chars max
 #my $re_meth_match = qr|[0-9a-zA-Z_]+|;		# any
 
 sub class_prefix_method_renamer
 {
     my ($class, $method, $type, $def_class) = @_;
 
-    if ($method =~ m/^$re_meth_match$/)
+    if ($method =~ m/^$re_three_char$/)
     {   return  (class_prefix($def_class) . "_" . $method);   }
+    
+    if ($method =~ m/\\u/) {	# method name has unicode ...
+	$method =~ s/\\u//g;
+	return  (class_prefix($def_class) . "_" . $method);
+    }
+    
     return $method;
 }
 
