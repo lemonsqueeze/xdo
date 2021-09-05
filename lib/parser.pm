@@ -110,12 +110,12 @@ sub make_method_call
 ###################################################################################
 
 my $re_field_kw = qr/(?: public| private| protected| final| static| volatile| transient| synthetic| enum)*/;
-my $re_field_id = qr/[a-zA-Z0-9_\$]+/;
+my $re_field_id = qr/[a-zA-Z0-9_\$\\]+/;
 
 sub parse_field
 {
     my ($s, $asm) = @_;
-    if ($s =~ m|^(\.field$re_field_kw) ($re_field_id) ($re_types) (.*)$|)
+    if ($s =~ m|^(\.field$re_field_kw) '?($re_field_id)'? ($re_types) (.*)$|)
     {   return ("decl" => $1, "field" => $2, "type" => $3, "tail" => $4);  }
     if ($s =~ m|^\.field|) {  
 	if ($s =~ m|$re_const|)  {  die "$asm: const found, run xdo constfix first:\n$s\n";  }

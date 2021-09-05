@@ -28,7 +28,7 @@ sub get_fields_mapping_for_file
     my $classname;
     my %type_count;
     my @fields;
-    while (my $s = <IN>)
+    foreach my $s (<IN>)
     {
 	if (my %c = parse_class($s, $asm))  {  $classname = $c{class};  }
 

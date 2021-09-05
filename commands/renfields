@@ -106,6 +106,12 @@ sub type_to_field_basename
 sub field_renamer
 {
     my ($class, $field, $type, $count, $asm) = @_;
+
+    if (length($field) > 3 &&
+	$field !~ m/\\u/) {		# if has unicode chars, rename.
+	return $field;			# don't rename long fields in case name is meaningful 
+    }
+    
     my $basename = type_to_field_basename($type, $asm);
     return find_new_field_name($class, $basename, $count);
 }
