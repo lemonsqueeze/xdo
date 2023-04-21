@@ -1,7 +1,6 @@
 #!/bin/bash
 
-export xdodir="${BASH_SOURCE%/*}"
-[ -h "$0" ] && export xdodir=$(dirname "$(readlink -f "$0")")
+export xdodir=`dirname "$( readlink -f "$0" )"`
 export cmddir="$xdodir/commands"
 export PATH="$xdodir/bin:$xdodir/Krakatau:$PATH"
 
